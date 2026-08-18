@@ -28,7 +28,8 @@ import static org.mockito.Mockito.*;
  *   <li>The per-IP limit applies only to {@code POST /api/v1/transactions}; other
  *       methods and paths are not counted.</li>
  *   <li>Different client IPs maintain independent counters.</li>
- *   <li>{@code X-Forwarded-For} header is honoured for real-IP detection behind a proxy.</li>
+ *   <li>{@code X-Forwarded-For} is ignored by default (prevents IP spoofing); honoured only
+ *       when {@code rate-limit.trust-proxy-headers=true} to verify trusted proxy deployment.</li>
  *   <li>The global limit returns 429 once the server-wide threshold is breached.</li>
  *   <li>Disabling either limit via configuration skips the corresponding check entirely.</li>
  * </ul>
@@ -198,23 +199,58 @@ class RateLimitFilterTest {
     }
 
     @Test
-    void xForwardedForHeader_usedAsClientIp() throws Exception {
-        // Behind a load balancer: X-Forwarded-For contains the real client IP
-        for (int i = 0; i < 4; i++) {
-            MockHttpServletRequest req = txPost("10.0.0.1"); // load balancer IP
-            req.addHeader("X-Forwarded-For", "203.0.113.99, 10.0.0.1");
-            if (i < 3) {
-                int status = invoke(req);
-                assertThat(status).isNotEqualTo(429);
-            } else {
-                // 4th request from the same forwarded IP must be rate-limited
-                MockHttpServletResponse resp = new MockHttpServletResponse();
-                filter.doFilter(req, resp, mock(FilterChain.class));
-                assertThat(resp.getStatus())
-                        .as("4th request from X-Forwarded-For IP must return 429")
-                        .isEqualTo(429);
-            }
+    void xForwardedForHeader_ignoredByDefault_remoteAddrUsed() throws Exception {
+        // SECURITY: trustProxyHeaders defaults to false to prevent IP spoofing.
+        // Even when X-Forwarded-For claims two different IPs, the filter uses remoteAddr.
+        // Both requests come from the same remoteAddr (10.0.0.1) so they share a counter.
+        ReflectionTestUtils.setField(filter, "trustProxyHeaders", false);
+
+        // 3 requests: spoofed X-Forwarded-For headers claiming to be different IPs
+        MockHttpServletRequest req1 = txPost("10.0.0.1");
+        req1.addHeader("X-Forwarded-For", "203.0.113.1");
+        invoke(req1);
+
+        MockHttpServletRequest req2 = txPost("10.0.0.1");
+        req2.addHeader("X-Forwarded-For", "203.0.113.2"); // different spoofed IP
+        invoke(req2);
+
+        MockHttpServletRequest req3 = txPost("10.0.0.1");
+        req3.addHeader("X-Forwarded-For", "203.0.113.3"); // yet another spoofed IP
+        invoke(req3);
+
+        // 4th request — all 4 share remoteAddr=10.0.0.1, so limit IS reached
+        // (the X-Forwarded-For IP rotation did NOT bypass the limit)
+        MockHttpServletRequest req4 = txPost("10.0.0.1");
+        req4.addHeader("X-Forwarded-For", "203.0.113.4");
+        assertThat(invoke(req4))
+                .as("Rotating X-Forwarded-For must NOT bypass rate limit — remoteAddr is used")
+                .isEqualTo(429);
+    }
+
+    @Test
+    void xForwardedForHeader_usedWhenTrustProxyEnabled() throws Exception {
+        // When trustProxyHeaders=true (behind a trusted L7 LB), the real client IP is taken
+        // from the leftmost entry in X-Forwarded-For.
+        ReflectionTestUtils.setField(filter, "trustProxyHeaders", true);
+
+        String lbIp = "10.0.0.1";         // load balancer's address (same for all requests)
+        String clientIp = "203.0.113.99"; // real client IP populated by the load balancer
+
+        // 3 requests from the same real client IP — all should be allowed
+        for (int i = 0; i < 3; i++) {
+            MockHttpServletRequest req = txPost(lbIp);
+            req.addHeader("X-Forwarded-For", clientIp + ", " + lbIp);
+            assertThat(invoke(req))
+                    .as("Request %d of 3 must be allowed when trustProxyHeaders=true", i + 1)
+                    .isNotEqualTo(429);
         }
+
+        // 4th request from the same real client IP — must be rate-limited
+        MockHttpServletRequest req4 = txPost(lbIp);
+        req4.addHeader("X-Forwarded-For", clientIp + ", " + lbIp);
+        assertThat(invoke(req4))
+                .as("4th request from X-Forwarded-For client IP must return 429 when trustProxyHeaders=true")
+                .isEqualTo(429);
     }
 
     // ── global limit ───────────────────────────────────────────────────────────
