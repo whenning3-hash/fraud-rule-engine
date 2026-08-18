@@ -625,6 +625,154 @@ class FraudEvaluationIntegrationTest {
     }
 
     // ══════════════════════════════════════════════════════════════════════════
+    // Velocity rule — end-to-end (positive + negative)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    void submitTransaction_velocityLimitExceeded_flaggedAsFraud() throws Exception {
+        // VELOCITY_RULE default: maxTransactions=5, windowMinutes=10.
+        // Submit 6 transactions for the same account in quick succession.
+        // The 6th crosses the >= 5 threshold and must be flagged.
+        for (int i = 1; i <= 5; i++) {
+            TransactionRequest tx = new TransactionRequest(
+                    "ACC-VEL-1", new BigDecimal("100.00"), "ZAR",
+                    "Merchant " + i, "GROCERY", "CARD_PRESENT", "ZAF",
+                    LocalDateTime.now().withHour(11));
+            mockMvc.perform(post("/api/v1/transactions")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(toJson(tx)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.fraudulent").value(false));
+        }
+
+        // 6th transaction — velocity threshold exceeded
+        TransactionRequest sixth = new TransactionRequest(
+                "ACC-VEL-1", new BigDecimal("100.00"), "ZAR",
+                "Merchant 6", "GROCERY", "CARD_PRESENT", "ZAF",
+                LocalDateTime.now().withHour(11));
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(sixth)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fraudulent").value(true))
+                .andExpect(jsonPath("$.riskScore").value(greaterThanOrEqualTo(30)));
+
+        assertThat(alertRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void submitTransaction_belowVelocityLimit_notFlagged() throws Exception {
+        // 4 transactions — well below the default threshold of 5 — must all be clean
+        for (int i = 1; i <= 4; i++) {
+            TransactionRequest tx = new TransactionRequest(
+                    "ACC-VEL-CLEAN", new BigDecimal("100.00"), "ZAR",
+                    "Merchant " + i, "GROCERY", "CARD_PRESENT", "ZAF",
+                    LocalDateTime.now().withHour(11));
+            mockMvc.perform(post("/api/v1/transactions")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(toJson(tx)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.fraudulent").value(false));
+        }
+
+        assertThat(alertRepository.count()).isZero();
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Fraud score boundary — threshold edge cases
+    // ══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    void submitTransaction_scoreExactlyAtThreshold_flaggedAsFraud() throws Exception {
+        // Local profile threshold = 20.  OFF_HOURS_RULE weight = 20.
+        // A transaction at 02:00 with a safe amount should score exactly 20 → fraudulent.
+        TransactionRequest tx = new TransactionRequest(
+                "ACC-BOUNDARY-1", new BigDecimal("500.00"), "ZAR",
+                "Night Shop", "GROCERY", "CARD_PRESENT", "ZAF",
+                LocalDateTime.now().withHour(2));
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(tx)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fraudulent").value(true))
+                .andExpect(jsonPath("$.riskScore").value(greaterThanOrEqualTo(20)));
+
+        assertThat(alertRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void submitTransaction_scoreBelowThreshold_notFlagged() throws Exception {
+        // UNUSUAL_MERCHANT_CATEGORY_RULE alone scores 15 (first-ever category for account).
+        // 15 < threshold 20 → must NOT be flagged.
+        TransactionRequest tx = new TransactionRequest(
+                "ACC-BOUNDARY-2", new BigDecimal("500.00"), "ZAR",
+                "Travel Agency", "TRAVEL", "ONLINE", "ZAF",
+                LocalDateTime.now().withHour(11));
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(tx)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fraudulent").value(false))
+                .andExpect(jsonPath("$.riskScore").value(lessThan(20)));
+
+        assertThat(alertRepository.count()).isZero();
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Country mismatch rule — negative: same country must NOT fire
+    // ══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    void submitTransaction_countryConsistentWithHistory_notFlagged() throws Exception {
+        // Both transactions are in ZAF — no mismatch.
+        // First transaction is clean (score 15 < threshold 20).
+        // Second transaction: COUNTRY_MISMATCH_RULE must be SILENT (ZAF == ZAF).
+        // Score = UNUSUAL_MERCHANT_CATEGORY (15 for LUXURY, first time) < 20 → not fraudulent.
+        TransactionRequest baseline = new TransactionRequest(
+                "ACC-NOCM-1", new BigDecimal("500.00"), "ZAR",
+                "Checkers", "GROCERY", "CARD_PRESENT", "ZAF",
+                LocalDateTime.now().withHour(10));
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(baseline)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fraudulent").value(false));
+
+        TransactionRequest sameCountry = new TransactionRequest(
+                "ACC-NOCM-1", new BigDecimal("800.00"), "ZAR",
+                "Woolworths", "RETAIL", "CARD_PRESENT", "ZAF",
+                LocalDateTime.now().withHour(11));
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(sameCountry)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fraudulent").value(false));
+
+        assertThat(alertRepository.count()).isZero();
+    }
+
+    @Test
+    void submitTransaction_noTransactionHistory_countryMismatchRuleDoesNotFire() throws Exception {
+        // Brand-new account with no prior history.
+        // COUNTRY_MISMATCH_RULE must NOT fire — there is no baseline to compare against.
+        // Score should only include UNUSUAL_MERCHANT_CATEGORY (15) < threshold (20).
+        TransactionRequest firstEver = new TransactionRequest(
+                "ACC-NOCM-NEW", new BigDecimal("500.00"), "ZAR",
+                "Harrods London", "LUXURY", "ONLINE", "GBR",
+                LocalDateTime.now().withHour(10));
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(firstEver)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fraudulent").value(false));
+
+        assertThat(alertRepository.count()).isZero();
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
     // helpers
     // ══════════════════════════════════════════════════════════════════════════
 
