@@ -78,10 +78,12 @@ class FraudEvaluationIntegrationTest {
         alertRepository.deleteAll();
         transactionRepository.deleteAll();
         // Reset rule configs to seeded defaults so tests that modify rules don't bleed into each other.
+        // Each case restores the exact values inserted by the V4 and V5 Flyway migrations.
         List<RuleConfigEntity> rules = ruleConfigRepository.findAll();
         rules.forEach(rule -> {
             rule.setEnabled(true);
             switch (rule.getRuleName()) {
+                // V4 baseline rules
                 case "VELOCITY_RULE"              -> { rule.setRiskWeight(30);
                     rule.setParameters(Map.of("maxTransactions","5","windowMinutes","10")); }
                 case "AMOUNT_THRESHOLD_RULE"      -> { rule.setRiskWeight(40);
@@ -90,6 +92,15 @@ class FraudEvaluationIntegrationTest {
                     rule.setParameters(Map.of("startHour","0","endHour","5")); }
                 case "DUPLICATE_TRANSACTION_RULE" -> { rule.setRiskWeight(35);
                     rule.setParameters(Map.of("windowSeconds","60")); }
+                // V5 Capitec-realistic rules
+                case "ROUND_NUMBER_AMOUNT_RULE"   -> { rule.setRiskWeight(25);
+                    rule.setParameters(Map.of("divisor","1000","minAmount","5000.00")); }
+                case "NIGHT_TIME_ATM_RULE"        -> { rule.setRiskWeight(45);
+                    rule.setParameters(Map.of("startHour","0","endHour","5","minAmount","1500.00")); }
+                case "COUNTRY_MISMATCH_RULE"      -> { rule.setRiskWeight(50);
+                    rule.setParameters(Map.of("windowHours","24")); }
+                case "UNUSUAL_MERCHANT_CATEGORY_RULE" -> { rule.setRiskWeight(15);
+                    rule.setParameters(Map.of()); }
                 default -> { /* leave any unknown rules untouched */ }
             }
         });
@@ -344,14 +355,21 @@ class FraudEvaluationIntegrationTest {
     // ══════════════════════════════════════════════════════════════════════════
 
     @Test
-    void listRules_returns200WithFourSeededRules() throws Exception {
+    void listRules_returns200WithAllEightSeededRules() throws Exception {
+        // V4 seeds 4 baseline rules; V5 seeds 4 additional Capitec-realistic rules
         mockMvc.perform(get("/api/v1/rules"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$", hasSize(4)))
+                .andExpect(jsonPath("$", hasSize(8)))
                 .andExpect(jsonPath("$[*].ruleName", containsInAnyOrder(
-                        "VELOCITY_RULE", "AMOUNT_THRESHOLD_RULE",
-                        "OFF_HOURS_RULE", "DUPLICATE_TRANSACTION_RULE")))
+                        "VELOCITY_RULE",
+                        "AMOUNT_THRESHOLD_RULE",
+                        "OFF_HOURS_RULE",
+                        "DUPLICATE_TRANSACTION_RULE",
+                        "ROUND_NUMBER_AMOUNT_RULE",
+                        "NIGHT_TIME_ATM_RULE",
+                        "COUNTRY_MISMATCH_RULE",
+                        "UNUSUAL_MERCHANT_CATEGORY_RULE")))
                 .andExpect(jsonPath("$[*].enabled", everyItem(equalTo(true))));
     }
 
@@ -496,6 +514,76 @@ class FraudEvaluationIntegrationTest {
                 .andExpect(jsonPath("$.riskScore").value(greaterThanOrEqualTo(35)));
 
         assertThat(alertRepository.count()).isEqualTo(1);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // New Capitec-realistic rules — end-to-end
+    // ══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    void submitTransaction_nightTimeAtmHighValue_flaggedAsFraud() throws Exception {
+        // 02:00 ATM withdrawal of R2 000 — all three conditions of NIGHT_TIME_ATM_RULE are met:
+        // channel=ATM (cash), hour=2 (in [0,5)), amount=2000 >= minAmount=1500.
+        // Risk weight = 45 >= threshold = 20, so the transaction is flagged.
+        TransactionRequest request = new TransactionRequest(
+                "ACC-ATM-1", new BigDecimal("2000.00"), "ZAR",
+                "ABSA ATM Sandton", "CASH", "ATM", "ZAF",
+                LocalDateTime.now().withHour(2).withMinute(15));
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fraudulent").value(true))
+                .andExpect(jsonPath("$.riskScore").value(greaterThanOrEqualTo(45)));
+
+        assertThat(alertRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void submitTransaction_roundNumberAmount_flaggedAsFraud() throws Exception {
+        // R10 000 is exactly divisible by 1 000 and above the R5 000 minimum — structuring signal.
+        // ROUND_NUMBER_AMOUNT_RULE fires with risk weight = 25 >= threshold = 20.
+        TransactionRequest request = new TransactionRequest(
+                "ACC-ROUND-1", new BigDecimal("10000.00"), "ZAR",
+                "Cash Deposit", "BANKING", "BRANCH", "ZAF",
+                LocalDateTime.now().withHour(11));
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(request)))
+                .andExpect(status().isCreated())
+                // ROUND_NUMBER_AMOUNT_RULE fires (25) + AMOUNT_THRESHOLD_RULE fires (40) = 65 >= 20
+                .andExpect(jsonPath("$.fraudulent").value(true))
+                .andExpect(jsonPath("$.riskScore").value(greaterThanOrEqualTo(25)));
+
+        assertThat(alertRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void submitTransaction_disableRoundNumberRule_roundAmountNoLongerFlagged() throws Exception {
+        // Disable ROUND_NUMBER_AMOUNT_RULE and submit a round number below other thresholds.
+        mockMvc.perform(patch("/api/v1/rules/55555555-5555-5555-5555-555555555555")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"enabled\":false,\"riskWeight\":25,\"parameters\":{\"divisor\":\"1000\",\"minAmount\":\"5000.00\"}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.enabled").value(false));
+
+        // R5 000 — round and above minimum, but the rule is disabled.
+        // AMOUNT_THRESHOLD_RULE does NOT fire (5000 is not > 10000).
+        // Score should be < threshold (20), so fraudulent=false.
+        TransactionRequest request = new TransactionRequest(
+                "ACC-ROUND-DIS", new BigDecimal("5000.00"), "ZAR",
+                "Investment Transfer", "BANKING", "ONLINE", "ZAF",
+                LocalDateTime.now().withHour(11));
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fraudulent").value(false));
+
+        assertThat(alertRepository.count()).isZero();
     }
 
     // ══════════════════════════════════════════════════════════════════════════
