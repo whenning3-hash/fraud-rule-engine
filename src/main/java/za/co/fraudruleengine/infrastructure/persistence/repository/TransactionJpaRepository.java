@@ -41,7 +41,10 @@ public interface TransactionJpaRepository extends JpaRepository<TransactionEntit
      * efficiently compare the set against the current transaction's country.
      *
      * @param accountId      the account to query
-     * @param since          the earliest transaction timestamp to include (window start)
+     * @param since          the earliest insertion timestamp to include (window start); compared
+     *                       against {@code createdAt} (server-set by Hibernate) rather than the
+     *                       client-supplied {@code transactionTime} to prevent replay attacks where
+     *                       a fraudster submits an old timestamp to escape the window check
      * @param currentTxId    the ID of the transaction currently under evaluation; excluded from
      *                       results so the rule is not trivially satisfied by itself
      * @return an unordered set of distinct country codes; empty if no qualifying records exist
@@ -50,7 +53,7 @@ public interface TransactionJpaRepository extends JpaRepository<TransactionEntit
             SELECT DISTINCT t.countryCode
             FROM TransactionEntity t
             WHERE t.accountId = :accountId
-              AND t.transactionTime >= :since
+              AND t.createdAt >= :since
               AND t.id != :currentTxId
               AND t.countryCode IS NOT NULL
             """)
