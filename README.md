@@ -254,9 +254,9 @@ mvn test
 mvn verify
 ```
 
-**120 unit tests**, **43 integration tests** — 163 total.
+**129 unit tests**, **43 integration tests** — 172 total.
 
-Unit tests (`src/test/java/.../unit/`) — pure JUnit 5 + Mockito, no Spring context, sub-second execution. Covers all 8 fraud rules, the rate-limit filter, the JWT provider, and repository adapters. Each rule has positive, negative, and boundary-condition tests.
+Unit tests (`src/test/java/.../unit/`) — pure JUnit 5 + Mockito, no Spring context, sub-second execution. Covers all 8 fraud rules, the rate-limit filter, the JWT provider, repository adapters, and the `LogMaskUtil` POPIA masking utility. Each rule has positive, negative, and boundary-condition tests.
 
 Integration tests (`*IntegrationTest`) use Testcontainers to start real PostgreSQL and Redis containers automatically. Docker must be running. Includes `LoadPerformanceIntegrationTest` which validates:
 - 20 concurrent requests complete within a 10-second wall-clock budget (virtual threads)
