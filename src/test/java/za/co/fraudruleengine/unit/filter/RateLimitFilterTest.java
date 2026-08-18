@@ -50,6 +50,8 @@ class RateLimitFilterTest {
         ReflectionTestUtils.setField(filter, "perIpLimit", 3);
         ReflectionTestUtils.setField(filter, "globalEnabled", true);
         ReflectionTestUtils.setField(filter, "globalLimit", 100); // high — don't interfere with per-IP tests
+        ReflectionTestUtils.setField(filter, "authEnabled", true);
+        ReflectionTestUtils.setField(filter, "authLimit", 3);     // small — same as perIpLimit for test symmetry
     }
 
     // ── helpers ────────────────────────────────────────────────────────────────
@@ -251,6 +253,48 @@ class RateLimitFilterTest {
         assertThat(invoke(req4))
                 .as("4th request from X-Forwarded-For client IP must return 429 when trustProxyHeaders=true")
                 .isEqualTo(429);
+    }
+
+    // ── auth brute-force limit ─────────────────────────────────────────────────
+
+    @Test
+    void authRequestsBelowLimit_areAllowed() throws Exception {
+        // authLimit = 3; first 3 attempts from same IP must be allowed through
+        for (int i = 0; i < 3; i++) {
+            MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/v1/auth/token");
+            req.setRemoteAddr(LOCAL_IP);
+            assertThat(invoke(req))
+                    .as("Auth attempt %d of 3 must not be rate-limited", i + 1)
+                    .isNotEqualTo(429);
+        }
+    }
+
+    @Test
+    void authRequestsAboveLimit_returns429() throws Exception {
+        // Exhaust the auth limit, then verify the next attempt is blocked
+        for (int i = 0; i < 3; i++) {
+            MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/v1/auth/token");
+            req.setRemoteAddr(LOCAL_IP);
+            invoke(req);
+        }
+        MockHttpServletRequest req4 = new MockHttpServletRequest("POST", "/api/v1/auth/token");
+        req4.setRemoteAddr(LOCAL_IP);
+        assertThat(invoke(req4))
+                .as("4th auth attempt with limit=3 must return 429 — brute-force protection")
+                .isEqualTo(429);
+    }
+
+    @Test
+    void authLimit_isIndependentOfTransactionLimit() throws Exception {
+        // Exhaust the transaction limit — auth endpoint must still be accessible
+        for (int i = 0; i < 3; i++) {
+            invoke(txPost(LOCAL_IP));
+        }
+        MockHttpServletRequest authReq = new MockHttpServletRequest("POST", "/api/v1/auth/token");
+        authReq.setRemoteAddr(LOCAL_IP);
+        assertThat(invoke(authReq))
+                .as("Auth endpoint must have its own independent counter from transactions")
+                .isNotEqualTo(429);
     }
 
     // ── global limit ───────────────────────────────────────────────────────────

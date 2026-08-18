@@ -13,6 +13,8 @@ import za.co.fraudruleengine.api.dto.TokenRequest;
 import za.co.fraudruleengine.api.dto.TokenResponse;
 import za.co.fraudruleengine.config.JwtTokenProvider;
 
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
 import java.util.Map;
 
 /**
@@ -45,23 +47,43 @@ public class AuthController {
     private long expirationMs;
 
     /**
-     * Static credential store — username → password.
-     *
-     * <p>In a real deployment this would be backed by a user store or OAuth2 provider.
-     * Passwords here are plain-text for demo clarity; a production system would store
-     * BCrypt hashes and use {@code PasswordEncoder.matches()}.
+     * BCrypt encoder used for password verification.
+     * BCrypt is the industry-standard one-way hashing algorithm for passwords — it is
+     * deliberately slow (cost factor 10 ≈ 100ms/hash) to resist brute-force attacks even
+     * if the credential store is compromised.
      */
-    private static final Map<String, String> USERS = Map.of(
-            "admin",    "admin123",
-            "analyst",  "analyst456",
-            "readonly", "readonly789"
-    );
+    private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
 
     /**
-     * Validates the supplied credentials and issues a signed JWT Bearer token.
+     * Static credential store — username → BCrypt hash.
+     *
+     * <p>Passwords are hashed at class-load time using BCrypt (cost=10). Plain-text passwords
+     * are never stored. In a production deployment this map would be replaced by a query against
+     * a proper user store or delegated entirely to an OAuth2 / IdP provider (e.g. Keycloak).
+     *
+     * <p>Demo credentials:
+     * <ul>
+     *   <li>{@code admin} / {@code admin123}</li>
+     *   <li>{@code analyst} / {@code analyst456}</li>
+     *   <li>{@code readonly} / {@code readonly789}</li>
+     * </ul>
+     */
+    private static final Map<String, String> USERS;
+
+    static {
+        USERS = Map.of(
+                "admin",    PASSWORD_ENCODER.encode("admin123"),
+                "analyst",  PASSWORD_ENCODER.encode("analyst456"),
+                "readonly", PASSWORD_ENCODER.encode("readonly789")
+        );
+    }
+
+    /**
+     * Validates the supplied credentials using BCrypt and issues a signed JWT Bearer token.
      *
      * <p>Returns {@code 401 Unauthorized} if the username is unknown or the password does not
-     * match. On success, returns the signed JWT and its expiry duration.
+     * match the stored hash. The same generic error message is returned for both cases to
+     * prevent user enumeration via timing differences.
      *
      * @param request the login payload containing username and password
      * @return HTTP 200 OK with a {@link TokenResponse}, or 401 if credentials are invalid
@@ -69,8 +91,8 @@ public class AuthController {
     @PostMapping("/token")
     @Operation(summary = "Obtain a JWT Bearer token — valid credentials required")
     public ResponseEntity<?> token(@Valid @RequestBody TokenRequest request) {
-        String expected = USERS.get(request.username());
-        if (expected == null || !expected.equals(request.password())) {
+        String storedHash = USERS.get(request.username());
+        if (storedHash == null || !PASSWORD_ENCODER.matches(request.password(), storedHash)) {
             log.warn("Authentication failed for user: {}", request.username());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Invalid username or password"));

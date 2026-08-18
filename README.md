@@ -254,7 +254,7 @@ mvn test
 mvn verify
 ```
 
-**129 unit tests**, **43 integration tests** — 172 total.
+**132 unit tests**, **43 integration tests** — 175 total.
 
 Unit tests (`src/test/java/.../unit/`) — pure JUnit 5 + Mockito, no Spring context, sub-second execution. Covers all 8 fraud rules, the rate-limit filter, the JWT provider, repository adapters, and the `LogMaskUtil` POPIA masking utility. Each rule has positive, negative, and boundary-condition tests.
 

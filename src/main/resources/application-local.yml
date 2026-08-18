@@ -15,6 +15,11 @@ server:
     # Expose full error messages locally so developers can debug without log access.
     include-message: always
 
+rate-limit:
+  auth:
+    # Auth is disabled on the local profile — no need to rate-limit the token endpoint.
+    enabled: false
+
 springdoc:
   api-docs:
     enabled: true

@@ -38,6 +38,10 @@ spring:
     redis:
       host: localhost
       port: 6379
+      # MUST be set via REDIS_PASSWORD environment variable in every non-local deployment.
+      # Defaults to empty (no password) for local development outside Docker Compose.
+      # Docker Compose sets this automatically via SPRING_DATA_REDIS_PASSWORD.
+      password: ${REDIS_PASSWORD:}
       timeout: 2000ms
       # Lettuce connection pool — enables pooling for concurrent rule lookups (velocity, duplicate).
       # Requires commons-pool2 on the classpath (included in spring-boot-starter-data-redis BOM).
@@ -80,6 +84,9 @@ rate-limit:
   # that strips and re-sets X-Forwarded-For from the real client address.
   # Leaving this false prevents IP spoofing to bypass per-client rate limits.
   trust-proxy-headers: false
+  auth:
+    enabled: true
+    requests-per-minute: 10   # strict — prevents automated credential stuffing / password spray
 
 fraud:
   score:

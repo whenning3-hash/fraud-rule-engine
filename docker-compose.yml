@@ -19,10 +19,13 @@ services:
   redis:
     image: redis:7-alpine
     container_name: fraud-redis
+    # Require authentication — prevents unauthenticated access to the velocity/duplicate store.
+    # Override REDIS_PASSWORD in production via secrets manager or Kubernetes secret.
+    command: redis-server --requirepass ${REDIS_PASSWORD:-fraudredis}
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-fraudredis}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -39,6 +42,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: fraudpass
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-fraudredis}
     depends_on:
       postgres:
         condition: service_healthy

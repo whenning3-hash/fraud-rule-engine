@@ -48,8 +48,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     /** Window length in milliseconds (1 minute). */
     private static final long WINDOW_MS = 60_000L;
 
-    /** Endpoint path on which the per-IP limit is enforced. */
+    /** Endpoint path on which the per-IP transaction limit is enforced. */
     private static final String TRANSACTION_PATH = "/api/v1/transactions";
+
+    /** Endpoint path on which the auth brute-force limit is enforced. */
+    private static final String AUTH_PATH = "/api/v1/auth/token";
 
     // ── configuration (overridable via application.yml) ─────────────────────
 
@@ -64,6 +67,22 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Value("${rate-limit.global.requests-per-minute:1000}")
     private int globalLimit;
+
+    /**
+     * Enables brute-force protection on the authentication endpoint.
+     * A strict per-IP limit prevents automated credential-stuffing and password-spray attacks.
+     * Disable only in local/dev environments where the auth endpoint is used freely for testing.
+     */
+    @Value("${rate-limit.auth.enabled:true}")
+    private boolean authEnabled;
+
+    /**
+     * Maximum authentication attempts per IP per minute (default: 10).
+     * At 10 attempts/min an attacker would need 6 minutes per 60-guess dictionary — effectively
+     * preventing any automated brute-force within a session window.
+     */
+    @Value("${rate-limit.auth.requests-per-minute:10}")
+    private int authLimit;
 
     /**
      * When {@code true}, the {@code X-Forwarded-For} header is trusted for IP resolution.
@@ -86,6 +105,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
      * Key: client IP address.  Value: {@code long[2]}{windowStart, requestCount}.
      */
     private final ConcurrentHashMap<String, long[]> perIpCounters = new ConcurrentHashMap<>();
+
+    /** Per-IP counters for the authentication endpoint (brute-force protection). */
+    private final ConcurrentHashMap<String, long[]> perIpAuthCounters = new ConcurrentHashMap<>();
 
     /** Global counter shared across all clients. */
     private volatile long globalWindowStart = System.currentTimeMillis();
@@ -128,6 +150,22 @@ public class RateLimitFilter extends OncePerRequestFilter {
             }
         }
 
+        // 3. Auth brute-force protection — strict per-IP limit on the token endpoint.
+        // Prevents automated credential-stuffing and password-spray attacks.
+        if (authEnabled
+                && "POST".equalsIgnoreCase(request.getMethod())
+                && AUTH_PATH.equals(requestPath)) {
+            String clientIp = resolveClientIp(request);
+            if (isAuthLimitExceeded(clientIp)) {
+                log.warn("rate-limit: auth limit ({} req/min) exceeded for client {} — possible brute-force",
+                        authLimit, clientIp);
+                sendTooManyRequests(response,
+                        "Authentication rate limit exceeded — maximum " + authLimit
+                        + " attempts per minute. Retry after 60 seconds.");
+                return;
+            }
+        }
+
         filterChain.doFilter(request, response);
     }
 
@@ -166,6 +204,29 @@ public class RateLimitFilter extends OncePerRequestFilter {
             }
             slot[1]++;
             return slot[1] > perIpLimit;
+        }
+    }
+
+    /**
+     * Returns {@code true} if the authentication attempt rate for the given IP has exceeded
+     * the configured limit within the current window.
+     *
+     * <p>Uses a separate counter map from the transaction limit so that the two controls
+     * operate independently and can be tuned or disabled individually.
+     *
+     * @param clientIp resolved client IP address
+     */
+    private boolean isAuthLimitExceeded(String clientIp) {
+        long now = System.currentTimeMillis();
+        long[] slot = perIpAuthCounters.computeIfAbsent(clientIp, k -> new long[]{now, 0});
+        synchronized (slot) {
+            if (now - slot[0] >= WINDOW_MS) {
+                slot[0] = now;
+                slot[1] = 1;
+                return false;
+            }
+            slot[1]++;
+            return slot[1] > authLimit;
         }
     }
 
