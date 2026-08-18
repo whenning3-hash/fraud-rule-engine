@@ -58,6 +58,8 @@ The project follows a **layered hexagonal-lite** architecture:
 - **Rule Configuration** — All rule thresholds are stored in PostgreSQL (`rule_configs` table as JSONB). Thresholds can be changed at runtime via the `PATCH /api/v1/rules/{id}` endpoint without redeployment.
 - **Redis Sliding Window** — The `VelocityRule` uses a Redis sorted set (`ZADD` + `ZCOUNT`) keyed by `accountId` to count transactions within a configurable time window. Expired entries are cleaned up automatically.
 - **Idempotent Duplicate Detection** — `DuplicateTransactionRule` writes a fingerprint (`accountId:amount:merchant`) to Redis with a TTL, preventing the same transaction from being counted twice.
+- **Rate Limiting** — `RateLimitFilter` (servlet filter, `@Order(1)`) enforces two independent sliding-window limits using pure Java concurrency primitives (no external library): a per-IP limit of **120 req/min** on `POST /api/v1/transactions` and a global limit of **1000 req/min** across all endpoints. Exceeded limits return `429 Too Many Requests` with a `Retry-After: 60` header.
+- **Connection Pool Tuning** — HikariCP is configured with `maximum-pool-size=20`, `minimum-idle=5`, and `keepalive-time=60s`. Lettuce (Redis client) connection pool is enabled with `max-active=16`. Tomcat thread pool is set to `max=200` with `accept-count=100`. All settings are externalised in `application.yml` for environment-specific tuning.
 
 ---
 
@@ -166,6 +168,31 @@ Bruno is the industry-standard API testing tool used at Capitec. The Bruno colle
 ── Verification ───────────────────────────────────────────────────────────────
 17. Transactions   > Submit Clean Transaction→ fraudulent=false, no alert created
 18. Health         > Health Check            → {"status":"UP"}
+
+── Performance / SLA ──────────────────────────────────────────────────────────
+19. Performance    > SLA-Health-Check        → response time < 100ms
+20. Performance    > SLA-Authentication      → response time < 500ms
+21. Performance    > SLA-Submit-Transaction  → response time < 500ms; 429 if rate limited
+22. Performance    > SLA-List-Rules          → response time < 300ms
+23. Performance    > SLA-List-Alerts         → response time < 300ms
+```
+
+**Run a Bruno load test (Bruno CLI):**
+```bash
+# Install once
+npm install -g @usebruno/cli
+
+# 100 sequential transaction evaluations — verify all respond within SLA
+bru run Performance/SLA-Submit-Transaction.bru \
+    --env FRE-Local \
+    --iteration-count 100 \
+    --delay 200
+
+# Faster burst (no delay) — verifies app handles back-pressure gracefully
+# Requests that exceed the per-IP rate limit (120/min) return 429, which the test accepts.
+bru run Performance/SLA-Submit-Transaction.bru \
+    --env FRE-Local \
+    --iteration-count 50
 ```
 
 ---
@@ -225,9 +252,14 @@ mvn test
 mvn verify
 ```
 
-Unit tests are in `src/test/java/.../unit/` — pure JUnit 5 + Mockito, no Spring context, sub-second execution.
+**111 unit tests**, **37 integration tests** — 148 total.
 
-Integration tests (`*IntegrationTest`) use Testcontainers to start real PostgreSQL and Redis containers automatically. Docker must be running.
+Unit tests (`src/test/java/.../unit/`) — pure JUnit 5 + Mockito, no Spring context, sub-second execution.  Covers all 8 fraud rules, the rate-limit filter, the JWT provider, and infrastructure adapters.
+
+Integration tests (`*IntegrationTest`) use Testcontainers to start real PostgreSQL and Redis containers automatically. Docker must be running. Includes `LoadPerformanceIntegrationTest` which validates:
+- 20 concurrent requests complete within a 10-second wall-clock budget (virtual threads)
+- High-risk and low-risk transactions are scored independently with no state bleed-through
+- Rate-limit filter returns `429 Too Many Requests` when the per-IP threshold is exceeded
 
 ---
 
