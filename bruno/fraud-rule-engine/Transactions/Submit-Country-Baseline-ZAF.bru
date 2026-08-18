@@ -1,0 +1,57 @@
+meta {
+  name: Submit Country Baseline ZAF (Run BEFORE Country Mismatch)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "accountId": "ACC-007",
+    "amount": 800.00,
+    "currency": "ZAR",
+    "merchantName": "Woolworths Cape Town",
+    "merchantCategory": "RETAIL",
+    "channel": "CARD_PRESENT",
+    "countryCode": "ZAF",
+    "transactionTime": "2025-01-15T09:00:00"
+  }
+}
+
+docs {
+  ## Step 1 of 2 — Country Mismatch Demo
+
+  Run this request FIRST to establish a South African transaction history for ACC-007.
+  The COUNTRY_MISMATCH_RULE looks back 24 hours and needs at least one prior transaction
+  in a different country to fire.
+
+  After this request:
+    → Run "Submit Country Mismatch" (Step 2) with the same accountId ACC-007 but countryCode GBR.
+    → The rule detects ZAF in history vs GBR now → impossible travel → riskScore +50.
+
+  This request on its own is clean (fraudulent=false, score=15 from UNUSUAL_CATEGORY only).
+}
+
+tests {
+  test("Status is 201 Created", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("Baseline transaction is clean (not fraudulent)", function() {
+    var json = res.getBody();
+    expect(json.fraudulent).to.equal(false);
+  });
+}
+
+vars:post {
+  transactionId: res.body.id
+}
