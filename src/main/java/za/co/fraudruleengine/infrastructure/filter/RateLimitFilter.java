@@ -93,10 +93,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        // 2. Per-IP limit — transaction evaluation endpoint only
+        // 2. Per-IP limit — transaction evaluation endpoint only.
+        // Use getRequestURI() as it is always populated; getServletPath() can be empty
+        // in embedded containers and test environments when the dispatcher is mapped to "/".
+        String requestPath = request.getServletPath();
+        if (requestPath == null || requestPath.isEmpty()) {
+            requestPath = request.getRequestURI();
+        }
         if (perIpEnabled
                 && "POST".equalsIgnoreCase(request.getMethod())
-                && TRANSACTION_PATH.equals(request.getServletPath())) {
+                && TRANSACTION_PATH.equals(requestPath)) {
             String clientIp = resolveClientIp(request);
             if (isPerIpLimitExceeded(clientIp)) {
                 log.warn("rate-limit: per-IP limit ({} req/min) exceeded for client {} on {}",
