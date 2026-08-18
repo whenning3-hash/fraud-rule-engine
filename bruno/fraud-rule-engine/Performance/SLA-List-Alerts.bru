@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/v1/fraud-alerts
+  url: {{baseUrl}}/api/v1/alerts
   body: none
   auth: bearer
 }
@@ -17,7 +17,7 @@ auth:bearer {
 docs {
   ## Performance SLA — Fraud Alert Retrieval
 
-  GET /api/v1/fraud-alerts fetches paginated alert records including their matched-rules
+  GET /api/v1/alerts fetches paginated alert records including their matched-rules
   JSON.  This hits the DB with a JOIN so is slightly heavier than the rules endpoint.
   Target SLA is 300ms.
 
