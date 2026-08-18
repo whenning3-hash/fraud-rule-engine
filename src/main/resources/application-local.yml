@@ -1,6 +1,10 @@
 fraud:
   security:
     enabled: false
+  score:
+    # Lower threshold for local/demo: individual rules trigger alerts so Bruno/Postman tests are easy to observe.
+    # Production default is 60 (requires combined signals).
+    threshold: 20
 
 spring:
   jpa:
