@@ -47,6 +47,9 @@ public class FraudEvaluationService {
             createAlert(entity, result);
             log.info("FRAUD DETECTED for transaction {} — score: {}, rules: {}",
                     entity.getId(), result.totalScore(), result.matchedRuleNames());
+        } else {
+            log.debug("Transaction {} passed — score: {} (threshold: {})",
+                    entity.getId(), result.totalScore(), fraudScoreThreshold);
         }
 
         return transactionRepository.save(entity);

@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.fraudruleengine.api.dto.RuleConfigResponse;
@@ -13,6 +14,7 @@ import za.co.fraudruleengine.application.RuleConfigService;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/rules")
 @RequiredArgsConstructor
@@ -42,8 +44,12 @@ public class RuleController {
     public ResponseEntity<RuleConfigResponse> updateRule(
             @PathVariable UUID id,
             @Valid @RequestBody RuleConfigUpdateRequest request) {
-        return ResponseEntity.ok(RuleConfigResponse.from(
-                ruleConfigService.update(id, request.enabled(), request.riskWeight(), request.parameters())
-        ));
+        log.info("Rule config update — id: {}, enabled: {}, riskWeight: {}",
+                id, request.enabled(), request.riskWeight());
+        RuleConfigResponse updated = RuleConfigResponse.from(
+                ruleConfigService.update(id, request.enabled(), request.riskWeight(), request.parameters()));
+        log.info("Rule {} ({}) updated — enabled: {}, riskWeight: {}",
+                id, updated.ruleName(), updated.enabled(), updated.riskWeight());
+        return ResponseEntity.ok(updated);
     }
 }

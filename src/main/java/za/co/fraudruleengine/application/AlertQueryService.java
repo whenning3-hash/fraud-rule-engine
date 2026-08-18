@@ -1,6 +1,7 @@
 package za.co.fraudruleengine.application;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,7 @@ import za.co.fraudruleengine.infrastructure.persistence.repository.AlertJpaRepos
 
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -37,7 +39,9 @@ public class AlertQueryService {
     @Transactional
     public FraudAlertEntity updateStatus(UUID id, AlertStatus newStatus) {
         FraudAlertEntity alert = findById(id);
+        AlertStatus previous = alert.getStatus();
         alert.setStatus(newStatus);
+        log.info("Alert {} status transition: {} → {}", id, previous, newStatus);
         return alertRepository.save(alert);
     }
 }

@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -16,6 +17,7 @@ import za.co.fraudruleengine.domain.model.AlertStatus;
 
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/alerts")
 @RequiredArgsConstructor
@@ -47,8 +49,9 @@ public class AlertController {
     public ResponseEntity<AlertResponse> updateAlertStatus(
             @PathVariable UUID id,
             @Valid @RequestBody AlertStatusUpdateRequest request) {
-        return ResponseEntity.ok(
-                AlertResponse.from(alertQueryService.updateStatus(id, request.status()))
-        );
+        log.info("Alert status update requested — id: {}, newStatus: {}", id, request.status());
+        AlertResponse updated = AlertResponse.from(alertQueryService.updateStatus(id, request.status()));
+        log.info("Alert {} status updated to {}", id, request.status());
+        return ResponseEntity.ok(updated);
     }
 }

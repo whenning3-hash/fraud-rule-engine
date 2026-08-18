@@ -23,7 +23,9 @@ public class VelocityStore implements VelocityStorePort {
         long now = Instant.now().toEpochMilli();
         long windowStart = now - (windowMinutes * 60_000L);
         Long count = redisTemplate.opsForZSet().count(key, windowStart, now);
-        return count != null ? count : 0L;
+        long result = count != null ? count : 0L;
+        log.debug("Velocity check — account: {}, window: {}min, count: {}", accountId, windowMinutes, result);
+        return result;
     }
 
     public void recordTransaction(String accountId, String transactionId) {
@@ -33,6 +35,7 @@ public class VelocityStore implements VelocityStorePort {
         redisTemplate.expire(key, Duration.ofHours(1));
         long cutoff = now - Duration.ofHours(1).toMillis();
         redisTemplate.opsForZSet().removeRangeByScore(key, 0, cutoff);
+        log.debug("Velocity recorded — account: {}, transactionId: {}", accountId, transactionId);
     }
 
     public boolean isDuplicate(String accountId, String amount, String merchantName,
@@ -42,8 +45,10 @@ public class VelocityStore implements VelocityStorePort {
         Boolean exists = redisTemplate.hasKey(key);
         if (Boolean.FALSE.equals(exists)) {
             redisTemplate.opsForValue().set(key, transactionId, Duration.ofSeconds(windowSeconds));
+            log.debug("Duplicate check — account: {}, amount: {}, merchant: {} — not a duplicate", accountId, amount, merchantName);
             return false;
         }
+        log.debug("Duplicate check — account: {}, amount: {}, merchant: {} — DUPLICATE DETECTED", accountId, amount, merchantName);
         return true;
     }
 }
