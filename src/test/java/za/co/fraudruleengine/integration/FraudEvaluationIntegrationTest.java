@@ -14,6 +14,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -70,7 +72,9 @@ class FraudEvaluationIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+        mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .apply(springSecurity())
+                .build();
         alertRepository.deleteAll();
         transactionRepository.deleteAll();
         // Reset rule configs to seeded defaults so tests that modify rules don't bleed into each other.
@@ -429,6 +433,69 @@ class FraudEvaluationIntegrationTest {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"));
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Input validation — malformed path variables
+    // ══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    void getTransaction_malformedUuid_returns400NotServerError() throws Exception {
+        // A non-UUID path variable must return 400, not 500.
+        mockMvc.perform(get("/api/v1/transactions/not-a-uuid"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getAlert_malformedUuid_returns400() throws Exception {
+        mockMvc.perform(get("/api/v1/alerts/not-a-uuid"))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Alert filter combinations
+    // ══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    void listAlerts_filterByAccountIdAndStatus_returnsOnlyMatchingAlerts() throws Exception {
+        submitHighAmountTransaction("ACC-COMBO-1");  // creates OPEN alert
+        submitHighAmountTransaction("ACC-COMBO-2");  // creates OPEN alert
+
+        // Filter by both accountId and status — should return only ACC-COMBO-1's alert
+        mockMvc.perform(get("/api/v1/alerts?accountId=ACC-COMBO-1&status=OPEN"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content[*].accountId", everyItem(equalTo("ACC-COMBO-1"))))
+                .andExpect(jsonPath("$.content[*].status", everyItem(equalTo("OPEN"))));
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Duplicate transaction rule — end-to-end
+    // ══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    void submitTransaction_duplicate_flaggedAsFraud() throws Exception {
+        // First submission — not a duplicate
+        TransactionRequest request = new TransactionRequest(
+                "ACC-DUP", new BigDecimal("250.00"), "ZAR",
+                "Pick n Pay", "GROCERY", "CARD_PRESENT", "ZA",
+                LocalDateTime.now().withHour(10));
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fraudulent").value(false));
+
+        // Second identical submission within the window — should trigger DUPLICATE_TRANSACTION_RULE
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fraudulent").value(true))
+                .andExpect(jsonPath("$.riskScore").value(greaterThanOrEqualTo(35)));
+
+        assertThat(alertRepository.count()).isEqualTo(1);
     }
 
     // ══════════════════════════════════════════════════════════════════════════

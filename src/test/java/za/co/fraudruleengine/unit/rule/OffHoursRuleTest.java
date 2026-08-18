@@ -42,10 +42,28 @@ class OffHoursRuleTest {
     }
 
     @Test
-    void shouldNotMatchAtBoundaryHour() {
+    void shouldNotMatchAtUpperBoundaryHour() {
+        // endHour is exclusive: hour == 5 should NOT match [0, 5)
         Transaction tx = buildTransactionAtHour(5);
         RuleResult result = rule.evaluate(tx, params);
         assertThat(result.matched()).isFalse();
+    }
+
+    @Test
+    void shouldMatchAtLowerBoundaryHour() {
+        // startHour is inclusive: hour == 0 SHOULD match [0, 5)
+        Transaction tx = buildTransactionAtHour(0);
+        RuleResult result = rule.evaluate(tx, params);
+        assertThat(result.matched()).isTrue();
+    }
+
+    @Test
+    void shouldUseDefaultParametersWhenParamsMissing() {
+        // Empty params → startHour defaults to 0, endHour defaults to 5
+        RuleParameters defaultParams = new RuleParameters(20, Map.of());
+        Transaction tx = buildTransactionAtHour(3);
+        RuleResult result = rule.evaluate(tx, defaultParams);
+        assertThat(result.matched()).isTrue();
     }
 
     private Transaction buildTransactionAtHour(int hour) {

@@ -45,6 +45,9 @@ public class TransactionController {
         return transactionRepository.findById(id)
                 .map(TransactionResponse::from)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseGet(() -> {
+                    log.warn("Transaction not found: {}", id);
+                    return ResponseEntity.notFound().build();
+                });
     }
 }

@@ -60,6 +60,8 @@ public class FraudEvaluationService {
         try {
             ruleDetailsJson = objectMapper.writeValueAsString(result.ruleResults());
         } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize rule results for transaction {} — storing empty detail: {}",
+                    transaction.getId(), e.getMessage());
             ruleDetailsJson = "[]";
         }
 

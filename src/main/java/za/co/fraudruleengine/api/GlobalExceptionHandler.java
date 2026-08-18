@@ -7,6 +7,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.stream.Collectors;
 
@@ -22,9 +23,22 @@ public class GlobalExceptionHandler {
         return detail;
     }
 
+    /**
+     * Handles type conversion failures on path variables and request parameters —
+     * e.g. GET /api/v1/transactions/not-a-uuid returns 400 instead of 500.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        String message = String.format("Invalid value '%s' for parameter '%s'", ex.getValue(), ex.getName());
+        log.warn("Type mismatch: {}", message);
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, message);
+        detail.setTitle("Bad Request");
+        return detail;
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ProblemDetail handleUnreadableMessage(HttpMessageNotReadableException ex) {
-        log.debug("Unreadable request body: {}", ex.getMessage());
+        log.warn("Unreadable request body: {}", ex.getMostSpecificCause().getMessage());
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
                 "Invalid request body: " + ex.getMostSpecificCause().getMessage());
         detail.setTitle("Bad Request");
@@ -36,6 +50,7 @@ public class GlobalExceptionHandler {
         String errors = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining(", "));
+        log.debug("Validation failed: {}", errors);
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, errors);
         detail.setTitle("Validation Failed");
         return detail;

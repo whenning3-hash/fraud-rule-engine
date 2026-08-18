@@ -56,6 +56,24 @@ class VelocityRuleTest {
         assertThat(result.riskScore()).isZero();
     }
 
+    @Test
+    void shouldMatchWhenVelocityEqualsThreshold() {
+        // count == maxTransactions boundary: >= means it fires at exactly the limit
+        when(velocityStore.getTransactionCount(anyString(), anyInt())).thenReturn(3L);
+        Transaction tx = buildTransaction();
+        RuleResult result = rule.evaluate(tx, params);
+        assertThat(result.matched()).isTrue();
+    }
+
+    @Test
+    void shouldUseDefaultParametersWhenParamsMissing() {
+        // Empty params → maxTransactions defaults to 5, windowMinutes defaults to 10
+        RuleParameters defaultParams = new RuleParameters(30, Map.of());
+        when(velocityStore.getTransactionCount(anyString(), anyInt())).thenReturn(6L);
+        RuleResult result = rule.evaluate(buildTransaction(), defaultParams);
+        assertThat(result.matched()).isTrue();
+    }
+
     private Transaction buildTransaction() {
         return new Transaction(UUID.randomUUID(), "ACC-001", new BigDecimal("100.00"), "ZAR",
                 "Merchant", "RETAIL", "ONLINE", "ZA", LocalDateTime.now());
