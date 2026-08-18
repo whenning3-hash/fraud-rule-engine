@@ -1,6 +1,6 @@
 package za.co.fraudruleengine.api.dto;
 
-import za.co.fraudruleengine.infrastructure.persistence.entity.TransactionEntity;
+import za.co.fraudruleengine.entity.TransactionEntity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

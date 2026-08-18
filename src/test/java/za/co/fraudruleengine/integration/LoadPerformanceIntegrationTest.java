@@ -21,9 +21,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import za.co.fraudruleengine.api.dto.TransactionRequest;
-import za.co.fraudruleengine.infrastructure.filter.RateLimitFilter;
-import za.co.fraudruleengine.infrastructure.persistence.repository.AlertJpaRepository;
-import za.co.fraudruleengine.infrastructure.persistence.repository.TransactionJpaRepository;
+import za.co.fraudruleengine.filter.RateLimitFilter;
+import za.co.fraudruleengine.repository.AlertJpaRepository;
+import za.co.fraudruleengine.repository.TransactionJpaRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

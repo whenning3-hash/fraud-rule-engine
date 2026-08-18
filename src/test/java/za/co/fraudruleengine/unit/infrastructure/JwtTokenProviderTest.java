@@ -3,7 +3,7 @@ package za.co.fraudruleengine.unit.infrastructure;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
-import za.co.fraudruleengine.infrastructure.config.JwtTokenProvider;
+import za.co.fraudruleengine.config.JwtTokenProvider;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

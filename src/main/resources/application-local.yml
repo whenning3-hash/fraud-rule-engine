@@ -10,5 +10,16 @@ spring:
   jpa:
     show-sql: true
 
+server:
+  error:
+    # Expose full error messages locally so developers can debug without log access.
+    include-message: always
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
 logging:
   config: classpath:log4j2-local.xml

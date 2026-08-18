@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.fraudruleengine.api.dto.RuleConfigResponse;
 import za.co.fraudruleengine.api.dto.RuleConfigUpdateRequest;
-import za.co.fraudruleengine.application.RuleConfigService;
+import za.co.fraudruleengine.service.RuleConfigService;
 
 import java.util.List;
 import java.util.UUID;

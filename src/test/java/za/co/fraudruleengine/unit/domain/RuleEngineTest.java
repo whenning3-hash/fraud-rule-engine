@@ -5,10 +5,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import za.co.fraudruleengine.domain.model.Transaction;
-import za.co.fraudruleengine.domain.rule.*;
-import za.co.fraudruleengine.infrastructure.persistence.entity.RuleConfigEntity;
-import za.co.fraudruleengine.infrastructure.persistence.repository.RuleConfigJpaRepository;
+import za.co.fraudruleengine.model.Transaction;
+import za.co.fraudruleengine.rule.*;
+import za.co.fraudruleengine.entity.RuleConfigEntity;
+import za.co.fraudruleengine.repository.RuleConfigJpaRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

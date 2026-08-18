@@ -1,7 +1,7 @@
 package za.co.fraudruleengine.api.dto;
 
-import za.co.fraudruleengine.domain.model.AlertStatus;
-import za.co.fraudruleengine.infrastructure.persistence.entity.FraudAlertEntity;
+import za.co.fraudruleengine.model.AlertStatus;
+import za.co.fraudruleengine.entity.FraudAlertEntity;
 
 import java.time.LocalDateTime;
 import java.util.List;

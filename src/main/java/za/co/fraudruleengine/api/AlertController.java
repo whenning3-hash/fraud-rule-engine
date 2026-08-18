@@ -12,8 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.fraudruleengine.api.dto.AlertResponse;
 import za.co.fraudruleengine.api.dto.AlertStatusUpdateRequest;
-import za.co.fraudruleengine.application.AlertQueryService;
-import za.co.fraudruleengine.domain.model.AlertStatus;
+import za.co.fraudruleengine.service.AlertQueryService;
+import za.co.fraudruleengine.model.AlertStatus;
 
 import java.util.UUID;
 

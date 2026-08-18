@@ -1,7 +1,7 @@
 package za.co.fraudruleengine.api.dto;
 
 import jakarta.validation.constraints.NotNull;
-import za.co.fraudruleengine.domain.model.AlertStatus;
+import za.co.fraudruleengine.model.AlertStatus;
 
 public record AlertStatusUpdateRequest(
         @NotNull(message = "Status is required")

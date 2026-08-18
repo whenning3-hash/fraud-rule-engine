@@ -8,8 +8,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import za.co.fraudruleengine.infrastructure.persistence.adapter.TransactionHistoryAdapter;
-import za.co.fraudruleengine.infrastructure.persistence.repository.TransactionJpaRepository;
+import za.co.fraudruleengine.repository.TransactionHistoryAdapter;
+import za.co.fraudruleengine.repository.TransactionJpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.Set;

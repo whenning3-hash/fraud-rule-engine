@@ -10,9 +10,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.fraudruleengine.api.dto.TransactionRequest;
 import za.co.fraudruleengine.api.dto.TransactionResponse;
-import za.co.fraudruleengine.application.FraudEvaluationService;
-import za.co.fraudruleengine.infrastructure.persistence.entity.TransactionEntity;
-import za.co.fraudruleengine.infrastructure.persistence.repository.TransactionJpaRepository;
+import za.co.fraudruleengine.service.FraudEvaluationService;
+import za.co.fraudruleengine.entity.TransactionEntity;
+import za.co.fraudruleengine.repository.TransactionJpaRepository;
 
 import java.util.UUID;
 

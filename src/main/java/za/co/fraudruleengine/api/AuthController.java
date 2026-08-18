@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.fraudruleengine.api.dto.TokenRequest;
 import za.co.fraudruleengine.api.dto.TokenResponse;
-import za.co.fraudruleengine.infrastructure.config.JwtTokenProvider;
+import za.co.fraudruleengine.config.JwtTokenProvider;
 
 /**
  * REST controller that issues JWT Bearer tokens for API authentication.
@@ -21,7 +21,7 @@ import za.co.fraudruleengine.infrastructure.config.JwtTokenProvider;
  * credential validation would be delegated to that system.
  *
  * <p>The {@code /api/v1/auth/**} path pattern is explicitly permit-listed in
- * {@link za.co.fraudruleengine.infrastructure.config.SecurityConfig} so that the token endpoint
+ * {@link za.co.fraudruleengine.config.SecurityConfig} so that the token endpoint
  * is accessible without a pre-existing token.
  *
  * <p>The issued token is signed with the HMAC-SHA key configured via

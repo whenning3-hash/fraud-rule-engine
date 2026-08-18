@@ -6,11 +6,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import za.co.fraudruleengine.domain.model.Transaction;
-import za.co.fraudruleengine.domain.rule.RuleParameters;
-import za.co.fraudruleengine.domain.rule.RuleResult;
-import za.co.fraudruleengine.domain.rule.TransactionHistoryPort;
-import za.co.fraudruleengine.domain.rule.impl.UnusualMerchantCategoryRule;
+import za.co.fraudruleengine.model.Transaction;
+import za.co.fraudruleengine.rule.RuleParameters;
+import za.co.fraudruleengine.rule.RuleResult;
+import za.co.fraudruleengine.rule.TransactionHistoryPort;
+import za.co.fraudruleengine.rule.impl.UnusualMerchantCategoryRule;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

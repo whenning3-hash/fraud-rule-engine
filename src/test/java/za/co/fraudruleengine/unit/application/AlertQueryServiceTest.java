@@ -9,10 +9,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import za.co.fraudruleengine.application.AlertQueryService;
-import za.co.fraudruleengine.domain.model.AlertStatus;
-import za.co.fraudruleengine.infrastructure.persistence.entity.FraudAlertEntity;
-import za.co.fraudruleengine.infrastructure.persistence.repository.AlertJpaRepository;
+import za.co.fraudruleengine.service.AlertQueryService;
+import za.co.fraudruleengine.model.AlertStatus;
+import za.co.fraudruleengine.entity.FraudAlertEntity;
+import za.co.fraudruleengine.repository.AlertJpaRepository;
 
 import java.util.List;
 import java.util.Optional;

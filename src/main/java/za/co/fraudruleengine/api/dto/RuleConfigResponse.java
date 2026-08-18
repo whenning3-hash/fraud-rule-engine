@@ -1,6 +1,6 @@
 package za.co.fraudruleengine.api.dto;
 
-import za.co.fraudruleengine.infrastructure.persistence.entity.RuleConfigEntity;
+import za.co.fraudruleengine.entity.RuleConfigEntity;
 
 import java.util.Map;
 import java.util.UUID;

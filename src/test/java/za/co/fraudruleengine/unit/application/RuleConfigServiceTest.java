@@ -5,9 +5,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import za.co.fraudruleengine.application.RuleConfigService;
-import za.co.fraudruleengine.infrastructure.persistence.entity.RuleConfigEntity;
-import za.co.fraudruleengine.infrastructure.persistence.repository.RuleConfigJpaRepository;
+import za.co.fraudruleengine.service.RuleConfigService;
+import za.co.fraudruleengine.entity.RuleConfigEntity;
+import za.co.fraudruleengine.repository.RuleConfigJpaRepository;
 
 import java.util.List;
 import java.util.Map;

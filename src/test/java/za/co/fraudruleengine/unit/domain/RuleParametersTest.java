@@ -1,7 +1,7 @@
 package za.co.fraudruleengine.unit.domain;
 
 import org.junit.jupiter.api.Test;
-import za.co.fraudruleengine.domain.rule.RuleParameters;
+import za.co.fraudruleengine.rule.RuleParameters;
 
 import java.math.BigDecimal;
 import java.util.Map;

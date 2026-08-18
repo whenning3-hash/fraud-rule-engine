@@ -22,10 +22,10 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import za.co.fraudruleengine.api.dto.TransactionRequest;
-import za.co.fraudruleengine.infrastructure.persistence.entity.RuleConfigEntity;
-import za.co.fraudruleengine.infrastructure.persistence.repository.AlertJpaRepository;
-import za.co.fraudruleengine.infrastructure.persistence.repository.RuleConfigJpaRepository;
-import za.co.fraudruleengine.infrastructure.persistence.repository.TransactionJpaRepository;
+import za.co.fraudruleengine.entity.RuleConfigEntity;
+import za.co.fraudruleengine.repository.AlertJpaRepository;
+import za.co.fraudruleengine.repository.RuleConfigJpaRepository;
+import za.co.fraudruleengine.repository.TransactionJpaRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

@@ -2,10 +2,10 @@ package za.co.fraudruleengine.unit.rule;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import za.co.fraudruleengine.domain.model.Transaction;
-import za.co.fraudruleengine.domain.rule.RuleParameters;
-import za.co.fraudruleengine.domain.rule.RuleResult;
-import za.co.fraudruleengine.domain.rule.impl.OffHoursRule;
+import za.co.fraudruleengine.model.Transaction;
+import za.co.fraudruleengine.rule.RuleParameters;
+import za.co.fraudruleengine.rule.RuleResult;
+import za.co.fraudruleengine.rule.impl.OffHoursRule;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
