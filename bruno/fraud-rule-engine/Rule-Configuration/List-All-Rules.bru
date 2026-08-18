@@ -1,0 +1,47 @@
+meta {
+  name: List All Rules
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/rules
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Returns 4 seeded rules", function() {
+    var json = res.getBody();
+    expect(json).to.be.an("array");
+    expect(json.length).to.equal(4);
+  });
+
+  test("All rules have required fields", function() {
+    var json = res.getBody();
+    json.forEach(function(rule) {
+      expect(rule).to.have.property("id");
+      expect(rule).to.have.property("ruleName");
+      expect(rule).to.have.property("enabled");
+      expect(rule).to.have.property("riskWeight");
+      expect(rule).to.have.property("parameters");
+    });
+  });
+
+  test("Expected rule names present", function() {
+    var json = res.getBody();
+    var names = json.map(function(r) { return r.ruleName; });
+    expect(names).to.include("VELOCITY_RULE");
+    expect(names).to.include("AMOUNT_THRESHOLD_RULE");
+    expect(names).to.include("OFF_HOURS_RULE");
+    expect(names).to.include("DUPLICATE_TRANSACTION_RULE");
+  });
+}

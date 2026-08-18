@@ -1,0 +1,35 @@
+meta {
+  name: Update Alert Status → REVIEWED (Investigation Complete)
+  type: http
+  seq: 7
+}
+
+# Note: valid AlertStatus values are OPEN, REVIEWED, CLOSED
+# Use this to mark an alert as reviewed after manual investigation
+
+patch {
+  url: {{baseUrl}}/api/v1/alerts/{{alertId}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "status": "REVIEWED"
+  }
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Alert status is REVIEWED", function() {
+    var json = res.getBody();
+    expect(json.status).to.equal("REVIEWED");
+  });
+}

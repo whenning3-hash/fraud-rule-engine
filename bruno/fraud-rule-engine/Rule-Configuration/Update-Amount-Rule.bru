@@ -1,0 +1,36 @@
+meta {
+  name: Update Amount Rule (Raise Limit to R15 000)
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/rules/{{amountRuleId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "enabled": true,
+    "riskWeight": 40,
+    "parameters": {
+      "maxAmount": "15000.00"
+    }
+  }
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("maxAmount updated to 15000.00", function() {
+    var json = res.getBody();
+    expect(json.parameters.maxAmount).to.equal("15000.00");
+  });
+}

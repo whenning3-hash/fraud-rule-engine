@@ -1,0 +1,35 @@
+meta {
+  name: Update Alert Status → CLOSED (Resolved)
+  type: http
+  seq: 8
+}
+
+# Note: valid AlertStatus values are OPEN, REVIEWED, CLOSED
+# Use this to close an alert after it has been fully investigated
+
+patch {
+  url: {{baseUrl}}/api/v1/alerts/{{alertId}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "status": "CLOSED"
+  }
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Alert status is CLOSED", function() {
+    var json = res.getBody();
+    expect(json.status).to.equal("CLOSED");
+  });
+}

@@ -1,0 +1,28 @@
+meta {
+  name: Filter Alerts By Account ID
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/alerts?accountId=ACC-002
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("All alerts belong to ACC-002", function() {
+    var json = res.getBody();
+    json.content.forEach(function(alert) {
+      expect(alert.accountId).to.equal("ACC-002");
+    });
+  });
+}

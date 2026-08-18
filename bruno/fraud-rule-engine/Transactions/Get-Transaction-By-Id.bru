@@ -1,0 +1,35 @@
+meta {
+  name: Get Transaction By ID
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/transactions/{{transactionId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Transaction ID matches", function() {
+    var json = res.getBody();
+    expect(json.id).to.equal(bru.getEnvVar("transactionId"));
+  });
+
+  test("Required fields present", function() {
+    var json = res.getBody();
+    expect(json).to.have.property("accountId");
+    expect(json).to.have.property("amount");
+    expect(json).to.have.property("riskScore");
+    expect(json).to.have.property("fraudulent");
+    expect(json).to.have.property("createdAt");
+  });
+}

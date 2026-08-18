@@ -1,0 +1,60 @@
+meta {
+  name: Submit Clean Transaction
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "accountId": "ACC-001",
+    "amount": 250.00,
+    "currency": "ZAR",
+    "merchantName": "Pick n Pay Claremont",
+    "merchantCategory": "GROCERY",
+    "channel": "CARD_PRESENT",
+    "countryCode": "ZA",
+    "transactionTime": "2025-01-15T10:30:00"
+  }
+}
+
+tests {
+  test("Status is 201 Created", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("Transaction ID returned", function() {
+    var json = res.getBody();
+    expect(json).to.have.property("id");
+    expect(json.id).to.be.a("string");
+  });
+
+  test("Risk score is a number", function() {
+    var json = res.getBody();
+    expect(json).to.have.property("riskScore");
+    expect(json.riskScore).to.be.a("number");
+  });
+
+  test("Transaction is clean (not fraudulent)", function() {
+    var json = res.getBody();
+    expect(json.fraudulent).to.equal(false);
+  });
+
+  test("Account ID echoed back", function() {
+    var json = res.getBody();
+    expect(json.accountId).to.equal("ACC-001");
+  });
+}
+
+vars:post {
+  transactionId: res.body.id
+}

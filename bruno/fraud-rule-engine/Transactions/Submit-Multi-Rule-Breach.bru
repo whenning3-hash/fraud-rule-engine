@@ -1,0 +1,48 @@
+meta {
+  name: Submit Multi-Rule Breach (High Score - AMOUNT + OFF_HOURS)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "accountId": "ACC-002",
+    "amount": 20000.00,
+    "currency": "ZAR",
+    "merchantName": "Suspicious Vendor",
+    "merchantCategory": "UNKNOWN",
+    "channel": "ONLINE",
+    "countryCode": "NG",
+    "transactionTime": "2025-01-15T03:00:00"
+  }
+}
+
+tests {
+  test("Status is 201 Created", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("High risk score — multiple rules breached", function() {
+    var json = res.getBody();
+    expect(json.riskScore).to.be.greaterThan(50);
+  });
+
+  test("Transaction is fraudulent", function() {
+    var json = res.getBody();
+    expect(json.fraudulent).to.equal(true);
+  });
+}
+
+vars:post {
+  transactionId: res.body.id
+}

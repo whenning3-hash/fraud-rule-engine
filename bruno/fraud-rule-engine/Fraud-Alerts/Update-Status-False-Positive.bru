@@ -1,0 +1,35 @@
+meta {
+  name: Reopen Alert → OPEN (Re-examine)
+  type: http
+  seq: 9
+}
+
+# Note: valid AlertStatus values are OPEN, REVIEWED, CLOSED
+# Use this to reopen a closed alert for further investigation
+
+patch {
+  url: {{baseUrl}}/api/v1/alerts/{{alertId}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "status": "OPEN"
+  }
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Alert status is OPEN", function() {
+    var json = res.getBody();
+    expect(json.status).to.equal("OPEN");
+  });
+}

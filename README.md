@@ -75,25 +75,84 @@ All thresholds are stored in the database and can be updated live via the Rules 
 
 ## Prerequisites
 
-- **Docker & Docker Compose** — for the one-command startup
-- **Java 25** and **Maven 3.9+** — for local development and running tests
+| Requirement | Version | Notes |
+|---|---|---|
+| **Rancher Desktop** | Latest | Container runtime (includes Docker + Docker Compose) |
+| **Java 25 JDK** | 25+ | Required to build the JAR |
+| **Maven** | 3.9+ | Build tool |
+| **Bruno** | Latest | API testing — Capitec standard (https://www.usebruno.com) |
 
 ---
 
 ## Quick Start (Docker — recommended)
 
+> **Important:** Spring Boot 4.1.0 uses Java 25 and is built from local Maven cache. Build the JAR first, then start Docker Compose. Do **not** skip `mvn clean package`.
+
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/whenning3-hash/fraud-rule-engine.git
 cd fraud-rule-engine
 
-# Start everything: PostgreSQL + Redis + the application
-docker compose up --build
+# 2. Build the JAR locally (uses local Maven cache, no internet download needed)
+mvn clean package -DskipTests
+
+# 3. Start Docker Compose — builds the image, starts PostgreSQL + Redis + app
+#    Rancher Desktop users: Docker is already configured via the rancher-desktop context
+docker compose up --build -d
+
+# 4. Verify everything started
+docker logs fraud-rule-engine
 ```
 
-The application starts on **http://localhost:8080**.
+The application starts on **http://localhost:8080** within ~5 seconds.
 
-Flyway runs automatically on startup and creates all tables and seed data.
+Flyway runs automatically and creates all 4 tables plus seeds the 4 fraud rules.
+
+> **Rancher Desktop users:** Docker is available at `unix://$HOME/.rd/docker.sock`. If the default
+> `docker` CLI doesn't connect, prefix commands with `DOCKER_HOST=unix://$HOME/.rd/docker.sock`
+> or switch context: `docker context use rancher-desktop`.
+
+---
+
+## Testing with Bruno (Capitec Standard)
+
+Bruno is the industry-standard API testing tool used at Capitec. The Bruno collection is in `bruno/fraud-rule-engine/`.
+
+**Setup (one time):**
+1. Download and install Bruno: https://www.usebruno.com/downloads
+2. Open Bruno → **File → Open Collection** → select the `bruno/fraud-rule-engine/` folder
+3. Select the **FRE-Local** environment (top-right dropdown)
+
+**How to test:**
+1. Run **Authentication → Get Token** first — the token is automatically saved to `bearerToken`
+2. Run any request in any folder — Bearer auth is configured on all protected endpoints
+3. The `transactionId` and `alertId` variables auto-populate when you run the transaction requests
+
+**Test sequence for a full fraud scenario:**
+```
+1. Authentication > Get Token
+2. Transactions   > Submit High Amount        → fraudulent=true, riskScore=40
+3. Transactions   > Submit Off-Hours          → fraudulent=true, riskScore=20
+4. Transactions   > Submit Multi-Rule Breach  → fraudulent=true, riskScore=60
+5. Fraud Alerts   > List All Alerts           → alertId auto-saved
+6. Fraud Alerts   > Get Alert By ID           → see matched rules + rule details
+7. Fraud Alerts   > Update Status → REVIEWED
+8. Rule Config    > List All Rules            → 4 seeded rules
+9. Rule Config    > Update Velocity Rule      → live threshold change
+10. Transactions  > Submit Clean Transaction  → fraudulent=false
+```
+
+---
+
+## Testing with Postman (Alternative)
+
+The Postman collection is in `postman/` for reviewers who prefer Postman.
+
+1. Open Postman → **Import** → select `postman/fraud-rule-engine.postman_collection.json`
+2. Import the environment: `postman/FRE-Local.postman_environment.json`
+3. Select **FRE-Local** in the environment dropdown
+4. Run **🔑 Authentication → Get Token** — the token is automatically saved
+5. Run requests in sequence
 
 ---
 
@@ -103,7 +162,7 @@ You still need PostgreSQL and Redis running locally:
 
 ```bash
 # Start dependencies only (app runs from IDE or Maven)
-docker compose up postgres redis
+docker compose up postgres redis -d
 ```
 
 Then run the application with the `local` profile (security disabled for easy testing):
@@ -150,7 +209,7 @@ Integration tests (`*IntegrationTest`) use Testcontainers to start real PostgreS
 
 Once running, Swagger UI is available at:
 
-**http://localhost:8080/swagger-ui**
+**http://localhost:8080/swagger-ui/index.html**
 
 OpenAPI JSON: **http://localhost:8080/api-docs**
 
@@ -309,3 +368,53 @@ Redis sorted sets provide O(log N) time for both inserting and range-counting by
 
 **Why separate domain records from JPA entities?**
 `Transaction` and `RuleResult` are pure Java records with no framework annotations. The rule implementations receive these clean domain objects, making them trivially testable in isolation without Spring context or mocking JPA.
+
+---
+
+## Troubleshooting
+
+**Docker daemon not found (Rancher Desktop)**
+```bash
+# Switch to the Rancher Desktop context
+docker context use rancher-desktop
+
+# Or prefix all docker commands with:
+DOCKER_HOST=unix://$HOME/.rd/docker.sock docker ...
+```
+
+**App won't start — `UnsupportedClassVersionError`**
+The Docker image requires the `eclipse-temurin:25-jre-alpine` base image. Make sure you have built the JAR with Java 25 (`java -version` should show 25.x.x).
+
+**Tables not created on startup**
+Flyway migrations run on startup. If you see SQL errors, check the logs:
+```bash
+docker logs fraud-rule-engine 2>&1 | grep -i "error\|exception"
+```
+The PostgreSQL container must be healthy before the app starts — Docker Compose `depends_on: condition: service_healthy` handles this.
+
+**Database empty after restart (volumes)**
+PostgreSQL data persists in a Docker named volume (`postgres_data`). To fully reset:
+```bash
+docker compose down -v   # removes volumes too
+mvn clean package -DskipTests
+docker compose up --build -d
+```
+
+**Port already in use**
+```bash
+# Check what's on port 8080
+lsof -i :8080
+# Or change the port in docker-compose.yml: "8081:8080"
+```
+
+**Container status check**
+```bash
+# Status of all containers
+docker compose ps
+
+# Live app logs
+docker logs -f fraud-rule-engine
+
+# Connect to PostgreSQL directly
+docker exec -it fraud-postgres psql -U frauduser -d frauddb
+```

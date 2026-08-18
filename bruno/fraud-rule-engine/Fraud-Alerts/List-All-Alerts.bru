@@ -1,0 +1,43 @@
+meta {
+  name: List All Fraud Alerts
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/alerts
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Response is paginated (has content array)", function() {
+    var json = res.getBody();
+    expect(json).to.have.property("content");
+    expect(json.content).to.be.an("array");
+  });
+
+  test("Each alert has required fields", function() {
+    var json = res.getBody();
+    if (json.content.length > 0) {
+      var alert = json.content[0];
+      expect(alert).to.have.property("id");
+      expect(alert).to.have.property("accountId");
+      expect(alert).to.have.property("status");
+      expect(alert).to.have.property("totalRiskScore");
+      expect(alert).to.have.property("matchedRules");
+    }
+  });
+}
+
+vars:post {
+  alertId: res.body.content && res.body.content.length > 0 ? res.body.content[0].id : ""
+}

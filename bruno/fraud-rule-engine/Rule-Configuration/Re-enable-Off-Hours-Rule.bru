@@ -1,0 +1,37 @@
+meta {
+  name: Re-enable Off-Hours Rule
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/rules/{{offHoursRuleId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "enabled": true,
+    "riskWeight": 20,
+    "parameters": {
+      "startHour": "0",
+      "endHour": "5"
+    }
+  }
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Rule is enabled again", function() {
+    var json = res.getBody();
+    expect(json.enabled).to.equal(true);
+  });
+}

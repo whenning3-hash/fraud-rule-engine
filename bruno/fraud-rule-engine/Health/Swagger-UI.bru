@@ -1,0 +1,17 @@
+meta {
+  name: Swagger UI (Open in Browser)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/swagger-ui/index.html
+  body: none
+  auth: none
+}
+
+tests {
+  test("Swagger UI is accessible (200 or 302)", function() {
+    expect(res.getStatus()).to.be.oneOf([200, 302]);
+  });
+}

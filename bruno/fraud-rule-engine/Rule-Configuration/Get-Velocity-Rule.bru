@@ -1,0 +1,32 @@
+meta {
+  name: Get Velocity Rule
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/rules/{{velocityRuleId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Rule name is VELOCITY_RULE", function() {
+    var json = res.getBody();
+    expect(json.ruleName).to.equal("VELOCITY_RULE");
+  });
+
+  test("Parameters contain maxTransactions and windowMinutes", function() {
+    var json = res.getBody();
+    expect(json.parameters).to.have.property("maxTransactions");
+    expect(json.parameters).to.have.property("windowMinutes");
+  });
+}

@@ -1,0 +1,34 @@
+meta {
+  name: OpenAPI JSON Spec
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api-docs
+  body: none
+  auth: none
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("OpenAPI version is 3.x", function() {
+    var json = res.getBody();
+    expect(json.openapi).to.match(/^3\./);
+  });
+
+  test("API info present", function() {
+    var json = res.getBody();
+    expect(json).to.have.property("info");
+    expect(json.info).to.have.property("title");
+  });
+
+  test("Paths are defined", function() {
+    var json = res.getBody();
+    expect(json).to.have.property("paths");
+    expect(Object.keys(json.paths).length).to.be.greaterThan(0);
+  });
+}

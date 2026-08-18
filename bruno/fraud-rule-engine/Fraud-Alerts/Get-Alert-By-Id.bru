@@ -1,0 +1,35 @@
+meta {
+  name: Get Alert By ID
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/alerts/{{alertId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Alert ID matches", function() {
+    var json = res.getBody();
+    expect(json.id).to.equal(bru.getEnvVar("alertId"));
+  });
+
+  test("Required alert fields present", function() {
+    var json = res.getBody();
+    expect(json).to.have.property("accountId");
+    expect(json).to.have.property("totalRiskScore");
+    expect(json).to.have.property("status");
+    expect(json).to.have.property("matchedRules");
+    expect(json).to.have.property("ruleDetails");
+  });
+}

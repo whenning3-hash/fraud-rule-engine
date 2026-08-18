@@ -1,0 +1,43 @@
+meta {
+  name: Update Velocity Rule (Tighten to 3 tx / 5 min)
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/rules/{{velocityRuleId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "enabled": true,
+    "riskWeight": 35,
+    "parameters": {
+      "maxTransactions": "3",
+      "windowMinutes": "5"
+    }
+  }
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Risk weight updated to 35", function() {
+    var json = res.getBody();
+    expect(json.riskWeight).to.equal(35);
+  });
+
+  test("Parameters updated", function() {
+    var json = res.getBody();
+    expect(json.parameters.maxTransactions).to.equal("3");
+    expect(json.parameters.windowMinutes).to.equal("5");
+  });
+}

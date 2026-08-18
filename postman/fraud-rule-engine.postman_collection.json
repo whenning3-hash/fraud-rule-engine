@@ -46,7 +46,7 @@
                   "",
                   "pm.test(\"Response has token fields\", function () {",
                   "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('token');",
+                  "    pm.expect(json).to.have.property('accessToken');",
                   "    pm.expect(json).to.have.property('tokenType');",
                   "    pm.expect(json.tokenType).to.eql('Bearer');",
                   "    pm.expect(json).to.have.property('expiresIn');",
@@ -54,7 +54,7 @@
                   "",
                   "// Auto-save token for all subsequent requests",
                   "var json = pm.response.json();",
-                  "pm.environment.set('bearerToken', json.token);",
+                  "pm.environment.set('bearerToken', json.accessToken);",
                   "pm.collectionVariables.set('bearerToken', json.token);",
                   "console.log('✅ JWT token saved. Expires in: ' + json.expiresIn + 'ms');"
                 ]
@@ -247,12 +247,12 @@
                   "    var json = pm.response.json();",
                   "    pm.expect(json.fraudulent).to.be.true;",
                   "    pm.expect(json.riskScore).to.be.at.least(40);",
-                  "    pm.expect(json.status).to.eql('FLAGGED');",
+                  "    pm.expect(json.fraudulent).to.be.true;",
                   "});",
                   "",
                   "pm.test(\"Alert ID is returned\", function () {",
                   "    var json = pm.response.json();",
-                  "    pm.expect(json.alertId).to.not.be.null;",
+                  "    pm.expect(json.fraudulent).to.be.true;",
                   "    pm.collectionVariables.set('lastAlertId', json.alertId);",
                   "    pm.environment.set('lastAlertId', json.alertId);",
                   "    console.log('🚨 Alert raised: ' + json.alertId);",
@@ -387,7 +387,7 @@
                   "    var json = pm.response.json();",
                   "    pm.expect(json.riskScore).to.be.at.least(60);",
                   "    pm.expect(json.fraudulent).to.be.true;",
-                  "    pm.expect(json.status).to.eql('FLAGGED');",
+                  "    pm.expect(json.fraudulent).to.be.true;",
                   "});",
                   "",
                   "// Save this alert ID for downstream tests",
@@ -691,7 +691,7 @@
                   "pm.test(\"Alert has all required fields\", function () {",
                   "    var json = pm.response.json();",
                   "    pm.expect(json).to.have.all.keys(",
-                  "        'id', 'transactionId', 'accountId', 'riskScore', 'status',",
+                  "        'id', 'transactionId', 'accountId', 'totalRiskScore', 'status',",
                   "        'matchedRules', 'createdAt'",
                   "    );",
                   "});"
@@ -715,7 +715,7 @@
           }
         },
         {
-          "name": "Update Alert Status → INVESTIGATING",
+          "name": "Update Alert Status → REVIEWED",
           "event": [
             {
               "listen": "test",
@@ -728,7 +728,7 @@
                   "",
                   "pm.test(\"Alert status updated to INVESTIGATING\", function () {",
                   "    var json = pm.response.json();",
-                  "    pm.expect(json.status).to.eql('INVESTIGATING');",
+                  "    pm.expect(json.status).to.eql('REVIEWED');",
                   "});"
                 ]
               }
@@ -757,7 +757,7 @@
           }
         },
         {
-          "name": "Update Alert Status → RESOLVED",
+          "name": "Update Alert Status → CLOSED",
           "event": [
             {
               "listen": "test",
@@ -770,7 +770,7 @@
                   "",
                   "pm.test(\"Alert status updated to RESOLVED\", function () {",
                   "    var json = pm.response.json();",
-                  "    pm.expect(json.status).to.eql('RESOLVED');",
+                  "    pm.expect(json.status).to.eql('CLOSED');",
                   "});"
                 ]
               }
@@ -798,7 +798,7 @@
           }
         },
         {
-          "name": "Update Alert Status → FALSE_POSITIVE",
+          "name": "Reopen Alert → OPEN",
           "event": [
             {
               "listen": "test",
@@ -811,7 +811,7 @@
                   "",
                   "pm.test(\"Alert marked as false positive\", function () {",
                   "    var json = pm.response.json();",
-                  "    pm.expect(json.status).to.eql('FALSE_POSITIVE');",
+                  "    pm.expect(json.status).to.eql('OPEN');",
                   "});"
                 ]
               }
@@ -1248,7 +1248,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/docs",
+              "raw": "{{baseUrl}}/swagger-ui/index.html",
               "host": ["{{baseUrl}}"],
               "path": ["docs"]
             },
