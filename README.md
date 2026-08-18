@@ -423,16 +423,31 @@ created_at                alert_id (FK)
 
 ---
 
-## Security
+## Security & POPIA Compliance
 
-The service enforces four banking-grade controls:
+The service enforces banking-grade security controls and is designed with the **Protection of Personal Information Act (POPIA)** in mind. Transaction records and fraud alerts constitute personal financial information under POPIA and are handled accordingly.
+
+### Security Controls
 
 | Control | Production behaviour | Local override |
 |---------|---------------------|----------------|
 | **JWT auth** | Required on all endpoints except `/api/v1/auth/token` and `/actuator/health` | Disabled (`fraud.security.enabled: false`) |
-| **JWT secret** | Injected from `JWT_SECRET` environment variable | Falls back to default in yml |
+| **JWT secret** | Injected from `JWT_SECRET` environment variable — never stored in source | Falls back to default in yml |
 | **Swagger / OpenAPI** | Disabled (`springdoc.api-docs.enabled: false`) — API docs must not be publicly accessible | Enabled via `application-local.yml` |
 | **Error messages** | Suppressed (`server.error.include-message: never`) — prevents schema/stack-trace leakage | `always` in local profile |
+| **Rate limiting** | 120 req/min per IP + 1000 req/min global; `trust-proxy-headers: false` prevents IP spoofing | Same |
+| **Actuator** | Only `/actuator/health` exposed — `/info` disabled to prevent metadata leakage | Same |
+
+### POPIA Controls
+
+| Requirement | Implementation |
+|-------------|----------------|
+| **Log masking** | `LogMaskUtil` masks all account identifiers and transaction amounts in every log statement — no PII written to log files in plain text |
+| **Data minimisation** | API responses return only fields required for fraud investigation; no unnecessary personal data is collected or stored |
+| **Data retention** | Configurable via `fraud.retention.transactions-days` (365) and `fraud.retention.fraud-alerts-days` (2555 / 7 years for regulatory hold). Cleanup jobs enforce these limits in the production pipeline |
+| **Access control** | All data endpoints require a valid JWT; unauthenticated requests are rejected with HTTP 401 |
+| **Error sanitisation** | The `GlobalExceptionHandler` catch-all returns a generic message — internal stack traces and SQL errors never reach the client |
+| **Credential protection** | Passwords are never logged; failed auth logs only the username (required for security audit trail) |
 
 **Getting a token (all non-local profiles):**
 

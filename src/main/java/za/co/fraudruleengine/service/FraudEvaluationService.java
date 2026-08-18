@@ -16,6 +16,7 @@ import za.co.fraudruleengine.entity.FraudAlertEntity;
 import za.co.fraudruleengine.entity.TransactionEntity;
 import za.co.fraudruleengine.repository.AlertJpaRepository;
 import za.co.fraudruleengine.repository.TransactionJpaRepository;
+import za.co.fraudruleengine.util.LogMaskUtil;
 
 import java.util.UUID;
 
@@ -83,8 +84,9 @@ public class FraudEvaluationService {
         if (result.isFraudulent(fraudScoreThreshold)) {
             entity.setFraudulent(true);
             createAlert(entity, result);
-            log.info("FRAUD DETECTED for transaction {} — score: {}, rules: {}",
-                    entity.getId(), result.totalScore(), result.matchedRuleNames());
+            log.info("FRAUD DETECTED — transaction: {}, account: {}, score: {}, rules: {}",
+                    entity.getId(), LogMaskUtil.maskAccount(entity.getAccountId()),
+                    result.totalScore(), result.matchedRuleNames());
         } else {
             log.debug("Transaction {} passed — score: {} (threshold: {})",
                     entity.getId(), result.totalScore(), fraudScoreThreshold);

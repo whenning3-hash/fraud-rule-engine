@@ -9,6 +9,7 @@ import za.co.fraudruleengine.repository.TransactionJpaRepository;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
+import za.co.fraudruleengine.util.LogMaskUtil;
 
 /**
  * Infrastructure adapter that implements {@link TransactionHistoryPort} using JPA queries against
@@ -57,7 +58,7 @@ public class TransactionHistoryAdapter implements TransactionHistoryPort {
                 .findDistinctCountryCodes(accountId, since, currentTransactionId);
 
         log.debug("Country history — account: {}, window: {}h, countries found: {}",
-                accountId, windowHours, countries);
+                LogMaskUtil.maskAccount(accountId), windowHours, countries);
 
         return countries;
     }
@@ -81,7 +82,7 @@ public class TransactionHistoryAdapter implements TransactionHistoryPort {
                 .existsByAccountIdAndMerchantCategoryAndIdNot(accountId, merchantCategory, currentTransactionId);
 
         log.debug("Category history — account: {}, category: {}, hasPrior: {}",
-                accountId, merchantCategory, hasPrior);
+                LogMaskUtil.maskAccount(accountId), merchantCategory, hasPrior);
 
         return hasPrior;
     }

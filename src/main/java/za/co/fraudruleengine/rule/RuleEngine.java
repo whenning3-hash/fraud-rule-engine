@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import za.co.fraudruleengine.model.Transaction;
 import za.co.fraudruleengine.entity.RuleConfigEntity;
 import za.co.fraudruleengine.repository.RuleConfigJpaRepository;
+import za.co.fraudruleengine.util.LogMaskUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -85,7 +86,7 @@ public class RuleEngine {
             if (result.matched()) {
                 totalScore += result.riskScore();
                 log.info("Rule {} MATCHED for account {} — score contribution: {}",
-                        rule.getRuleName(), transaction.accountId(), result.riskScore());
+                        rule.getRuleName(), LogMaskUtil.maskAccount(transaction.accountId()), result.riskScore());
             }
         }
 

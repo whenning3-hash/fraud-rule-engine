@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
+import za.co.fraudruleengine.util.LogMaskUtil;
 
 /**
  * Redis-backed implementation of {@link VelocityStorePort} that tracks transaction frequency
@@ -61,7 +62,7 @@ public class VelocityStore implements VelocityStorePort {
         long windowStart = now - (windowMinutes * 60_000L);
         Long count = redisTemplate.opsForZSet().count(key, windowStart, now);
         long result = count != null ? count : 0L;
-        log.debug("Velocity check — account: {}, window: {}min, count: {}", accountId, windowMinutes, result);
+        log.debug("Velocity check — account: {}, window: {}min, count: {}", LogMaskUtil.maskAccount(accountId), windowMinutes, result);
         return result;
     }
 
@@ -89,7 +90,7 @@ public class VelocityStore implements VelocityStorePort {
         // Prune entries older than 1 hour to prevent unbounded sorted-set growth
         long cutoff = now - Duration.ofHours(1).toMillis();
         redisTemplate.opsForZSet().removeRangeByScore(key, 0, cutoff);
-        log.debug("Velocity recorded — account: {}, transactionId: {}", accountId, transactionId);
+        log.debug("Velocity recorded — account: {}, transactionId: {}", LogMaskUtil.maskAccount(accountId), transactionId);
     }
 
     /**
@@ -122,10 +123,12 @@ public class VelocityStore implements VelocityStorePort {
         if (Boolean.FALSE.equals(exists)) {
             // First occurrence: set the key with the configured TTL so subsequent calls detect it
             redisTemplate.opsForValue().set(key, transactionId, Duration.ofSeconds(windowSeconds));
-            log.debug("Duplicate check — account: {}, amount: {}, merchant: {} — not a duplicate", accountId, amount, merchantName);
+            log.debug("Duplicate check — account: {}, amount: {}, merchant: {} — not a duplicate",
+                    LogMaskUtil.maskAccount(accountId), LogMaskUtil.maskAmount(amount), merchantName);
             return false;
         }
-        log.debug("Duplicate check — account: {}, amount: {}, merchant: {} — DUPLICATE DETECTED", accountId, amount, merchantName);
+        log.debug("Duplicate check — account: {}, amount: {}, merchant: {} — DUPLICATE DETECTED",
+                LogMaskUtil.maskAccount(accountId), LogMaskUtil.maskAmount(amount), merchantName);
         return true;
     }
 }

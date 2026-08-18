@@ -13,6 +13,7 @@ import za.co.fraudruleengine.api.dto.TransactionResponse;
 import za.co.fraudruleengine.service.FraudEvaluationService;
 import za.co.fraudruleengine.entity.TransactionEntity;
 import za.co.fraudruleengine.repository.TransactionJpaRepository;
+import za.co.fraudruleengine.util.LogMaskUtil;
 
 import java.util.UUID;
 
@@ -58,7 +59,8 @@ public class TransactionController {
     public ResponseEntity<TransactionResponse> submitTransaction(
             @Valid @RequestBody TransactionRequest request) {
         log.info("Transaction received — account: {}, amount: {} {}, channel: {}",
-                request.accountId(), request.amount(), request.currency(), request.channel());
+                LogMaskUtil.maskAccount(request.accountId()),
+                LogMaskUtil.maskAmount(request.amount()), request.currency(), request.channel());
         TransactionEntity result = fraudEvaluationService.evaluate(request);
         log.debug("Transaction {} evaluated — fraudulent: {}, riskScore: {}",
                 result.getId(), result.isFraudulent(), result.getRiskScore());

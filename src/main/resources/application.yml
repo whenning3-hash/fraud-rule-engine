@@ -84,6 +84,13 @@ rate-limit:
 fraud:
   score:
     threshold: 60
+  # Data retention — POPIA Section 14 requires personal information to be kept no longer than
+  # necessary for the purpose for which it was collected.  These values define the retention
+  # periods enforced by scheduled cleanup jobs in the production deployment pipeline.
+  # Transactions are personal financial data; fraud alerts are derived sensitive records.
+  retention:
+    transactions-days: 365      # retain raw transaction records for 1 year
+    fraud-alerts-days: 2555     # retain fraud alerts for 7 years (regulatory / legal hold)
   security:
     enabled: true
     jwt:
