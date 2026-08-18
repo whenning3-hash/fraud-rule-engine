@@ -6,7 +6,7 @@ import za.co.fraudruleengine.domain.model.Transaction;
 import za.co.fraudruleengine.domain.rule.FraudRule;
 import za.co.fraudruleengine.domain.rule.RuleParameters;
 import za.co.fraudruleengine.domain.rule.RuleResult;
-import za.co.fraudruleengine.infrastructure.redis.VelocityStore;
+import za.co.fraudruleengine.infrastructure.redis.VelocityStorePort;
 
 @Component
 @RequiredArgsConstructor
@@ -14,7 +14,7 @@ public class VelocityRule implements FraudRule {
 
     public static final String RULE_NAME = "VELOCITY_RULE";
 
-    private final VelocityStore velocityStore;
+    private final VelocityStorePort velocityStore;
 
     @Override
     public String getRuleName() {

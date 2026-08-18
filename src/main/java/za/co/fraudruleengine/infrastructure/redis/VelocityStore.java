@@ -11,7 +11,7 @@ import java.time.Instant;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class VelocityStore {
+public class VelocityStore implements VelocityStorePort {
 
     private final StringRedisTemplate redisTemplate;
 

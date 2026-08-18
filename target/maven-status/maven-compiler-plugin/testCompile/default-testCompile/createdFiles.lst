@@ -1,0 +1,5 @@
+za/co/fraudruleengine/unit/rule/VelocityRuleTest.class
+za/co/fraudruleengine/unit/rule/OffHoursRuleTest.class
+za/co/fraudruleengine/unit/rule/AmountThresholdRuleTest.class
+za/co/fraudruleengine/integration/FraudEvaluationIntegrationTest.class
+za/co/fraudruleengine/unit/rule/DuplicateTransactionRuleTest.class

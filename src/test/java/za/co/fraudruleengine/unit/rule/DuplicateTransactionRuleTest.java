@@ -10,7 +10,7 @@ import za.co.fraudruleengine.domain.model.Transaction;
 import za.co.fraudruleengine.domain.rule.RuleParameters;
 import za.co.fraudruleengine.domain.rule.RuleResult;
 import za.co.fraudruleengine.domain.rule.impl.DuplicateTransactionRule;
-import za.co.fraudruleengine.infrastructure.redis.VelocityStore;
+import za.co.fraudruleengine.infrastructure.redis.VelocityStorePort;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -25,7 +25,7 @@ import static org.mockito.Mockito.when;
 class DuplicateTransactionRuleTest {
 
     @Mock
-    private VelocityStore velocityStore;
+    private VelocityStorePort velocityStore;
 
     @InjectMocks
     private DuplicateTransactionRule rule;
