@@ -65,6 +65,20 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Value("${rate-limit.global.requests-per-minute:1000}")
     private int globalLimit;
 
+    /**
+     * When {@code true}, the {@code X-Forwarded-For} header is trusted for IP resolution.
+     * <strong>Only enable this when the service sits behind a trusted reverse proxy or load
+     * balancer that sets and sanitises the header.</strong>  Enabling it in a deployment without
+     * a trusted proxy allows any caller to spoof their IP and bypass the per-IP rate limit by
+     * rotating arbitrary values in the header.
+     *
+     * <p>Defaults to {@code false} — the direct {@code REMOTE_ADDR} is used.  Set to
+     * {@code true} in environments where the service is fronted by an L7 load balancer
+     * (e.g. AWS ALB, NGINX, Kubernetes ingress) that reliably populates the header.
+     */
+    @Value("${rate-limit.trust-proxy-headers:false}")
+    private boolean trustProxyHeaders;
+
     // ── state ────────────────────────────────────────────────────────────────
 
     /**
@@ -156,15 +170,28 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Resolves the real client IP, honouring {@code X-Forwarded-For} set by a load balancer
-     * or reverse proxy.  Falls back to {@link HttpServletRequest#getRemoteAddr()} when no
-     * proxy header is present.
+     * Resolves the client IP used for per-IP rate limiting.
+     *
+     * <p>When {@code rate-limit.trust-proxy-headers=true} the {@code X-Forwarded-For} header
+     * is consulted first.  The leftmost entry in the comma-separated chain is taken as the
+     * originating client IP (the standard convention for L7 proxies/load balancers).
+     *
+     * <p><strong>Security note:</strong> {@code X-Forwarded-For} is only trusted when
+     * {@code trustProxyHeaders=true} because the header can be freely set by any client.
+     * Trusting it unconditionally would allow an attacker to rotate arbitrary IPs and bypass
+     * the per-IP limit entirely.  Only enable proxy header trust when the service is deployed
+     * behind a reverse proxy that strips and re-sets the header from the real client address.
+     *
+     * @param request the incoming HTTP request
+     * @return the resolved client IP address used as the rate-limit key
      */
     private String resolveClientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            // X-Forwarded-For may be a comma-separated chain; take the leftmost (originating client)
-            return forwarded.split(",")[0].trim();
+        if (trustProxyHeaders) {
+            String forwarded = request.getHeader("X-Forwarded-For");
+            if (forwarded != null && !forwarded.isBlank()) {
+                // X-Forwarded-For may be a comma-separated chain; take the leftmost (originating client)
+                return forwarded.split(",")[0].trim();
+            }
         }
         return request.getRemoteAddr();
     }

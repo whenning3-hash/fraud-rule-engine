@@ -6,17 +6,20 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.co.fraudruleengine.api.dto.TokenRequest;
 import za.co.fraudruleengine.api.dto.TokenResponse;
 import za.co.fraudruleengine.config.JwtTokenProvider;
 
+import java.util.Map;
+
 /**
  * REST controller that issues JWT Bearer tokens for API authentication.
  *
- * <p>This controller exists to make the demo self-contained: any username/password combination
- * is accepted and a signed JWT is returned. In a production deployment, this endpoint would be
+ * <p>Credentials are validated against a static in-memory user map. This keeps the service
+ * self-contained for demo and testing purposes. In a production deployment this would be
  * replaced by an integration with a proper identity provider (e.g. Keycloak, Azure AD) and
  * credential validation would be delegated to that system.
  *
@@ -42,19 +45,36 @@ public class AuthController {
     private long expirationMs;
 
     /**
-     * Issues a signed JWT Bearer token for the supplied username.
+     * Static credential store — username → password.
      *
-     * <p><strong>Demo behaviour:</strong> no password validation is performed; the username is
-     * used as the JWT {@code sub} claim directly. Downstream endpoints extract this subject via
-     * {@link JwtTokenProvider#getSubject} for logging purposes.
+     * <p>In a real deployment this would be backed by a user store or OAuth2 provider.
+     * Passwords here are plain-text for demo clarity; a production system would store
+     * BCrypt hashes and use {@code PasswordEncoder.matches()}.
+     */
+    private static final Map<String, String> USERS = Map.of(
+            "admin",    "admin123",
+            "analyst",  "analyst456",
+            "readonly", "readonly789"
+    );
+
+    /**
+     * Validates the supplied credentials and issues a signed JWT Bearer token.
      *
-     * @param request the login payload containing the desired username (and ignored password)
-     * @return HTTP 200 OK with a {@link TokenResponse} containing the signed JWT and its
-     *         expiry duration in milliseconds
+     * <p>Returns {@code 401 Unauthorized} if the username is unknown or the password does not
+     * match. On success, returns the signed JWT and its expiry duration.
+     *
+     * @param request the login payload containing username and password
+     * @return HTTP 200 OK with a {@link TokenResponse}, or 401 if credentials are invalid
      */
     @PostMapping("/token")
-    @Operation(summary = "Obtain a JWT Bearer token (demo: any username/password accepted)")
-    public ResponseEntity<TokenResponse> token(@Valid @RequestBody TokenRequest request) {
+    @Operation(summary = "Obtain a JWT Bearer token — valid credentials required")
+    public ResponseEntity<?> token(@Valid @RequestBody TokenRequest request) {
+        String expected = USERS.get(request.username());
+        if (expected == null || !expected.equals(request.password())) {
+            log.warn("Authentication failed for user: {}", request.username());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Invalid username or password"));
+        }
         log.info("Token issued for user: {}", request.username());
         String token = jwtTokenProvider.generateToken(request.username());
         return ResponseEntity.ok(TokenResponse.bearer(token, expirationMs));

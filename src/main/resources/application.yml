@@ -76,6 +76,10 @@ rate-limit:
   global:
     enabled: true
     requests-per-minute: 1000   # total across all clients; prevents server-wide overload
+  # SECURITY: Only enable when the service is behind a trusted L7 load balancer/reverse proxy
+  # that strips and re-sets X-Forwarded-For from the real client address.
+  # Leaving this false prevents IP spoofing to bypass per-client rate limits.
+  trust-proxy-headers: false
 
 fraud:
   score:
