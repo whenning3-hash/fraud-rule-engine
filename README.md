@@ -25,31 +25,33 @@ A production-grade Spring Boot 4 microservice that evaluates configurable fraud 
 
 ## Architecture
 
-The project follows a **layered hexagonal-lite** architecture:
+The project uses a flat, industry-standard Spring Boot package layout:
 
 ```
-┌──────────────────────────────────────────────────────┐
-│                    API Layer                          │
-│  TransactionController  AlertController  RuleController│
-│  AuthController         GlobalExceptionHandler        │
-├──────────────────────────────────────────────────────┤
-│                 Application Layer                     │
-│  FraudEvaluationService   AlertQueryService           │
-│  RuleConfigService                                    │
-├──────────────────────────────────────────────────────┤
-│                   Domain Layer                        │
-│  FraudRule (interface)    RuleEngine                  │
-│  VelocityRule             AmountThresholdRule         │
-│  OffHoursRule             DuplicateTransactionRule    │
-│  RoundNumberAmountRule    NightTimeAtmWithdrawalRule  │
-│  CountryMismatchRule      UnusualMerchantCategoryRule │
-│  Transaction (record)     RuleResult (record)         │
-│  TransactionHistoryPort   (Ports & Adapters)          │
-├──────────────────────────────────────────────────────┤
-│                Infrastructure Layer                   │
-│  JPA Entities + Repositories   Redis VelocityStore   │
-│  JWT Filter + Provider         Flyway Migrations      │
-└──────────────────────────────────────────────────────┘
+za.co.fraudruleengine
+├── api/            Controllers (TransactionController, AlertController,
+│   └── dto/        RuleController, AuthController) + request/response DTOs
+├── service/        Business logic (FraudEvaluationService, AlertQueryService,
+│                   RuleConfigService)
+├── rule/           FraudRule interface, RuleEngine, RuleParameters, RuleResult
+│   └── impl/       8 rule implementations (VelocityRule, AmountThresholdRule, …)
+├── model/          Domain value objects — Transaction (record), AlertStatus (enum)
+├── entity/         JPA entities — TransactionEntity, FraudAlertEntity, RuleConfigEntity
+├── repository/     Spring Data JPA repos + TransactionHistoryAdapter
+├── redis/          VelocityStorePort (interface) + VelocityStore (Redis impl)
+├── config/         Spring Security, JWT filter/provider, Flyway, Jackson, OpenAPI
+└── filter/         RateLimitFilter (servlet filter, @Order(1))
+```
+
+**Request flow:**
+```
+HTTP request
+  → RateLimitFilter          (429 if rate exceeded)
+  → JwtAuthenticationFilter  (401 if token invalid)
+  → Controller               (validates + maps DTO)
+  → Service                  (orchestrates evaluation)
+  → RuleEngine               (iterates all 8 rules, aggregates score)
+  → Repository / Redis       (persists alert if score ≥ threshold)
 ```
 
 ### Design Patterns
@@ -252,9 +254,9 @@ mvn test
 mvn verify
 ```
 
-**111 unit tests**, **37 integration tests** — 148 total.
+**120 unit tests**, **43 integration tests** — 163 total.
 
-Unit tests (`src/test/java/.../unit/`) — pure JUnit 5 + Mockito, no Spring context, sub-second execution.  Covers all 8 fraud rules, the rate-limit filter, the JWT provider, and infrastructure adapters.
+Unit tests (`src/test/java/.../unit/`) — pure JUnit 5 + Mockito, no Spring context, sub-second execution. Covers all 8 fraud rules, the rate-limit filter, the JWT provider, and repository adapters. Each rule has positive, negative, and boundary-condition tests.
 
 Integration tests (`*IntegrationTest`) use Testcontainers to start real PostgreSQL and Redis containers automatically. Docker must be running. Includes `LoadPerformanceIntegrationTest` which validates:
 - 20 concurrent requests complete within a 10-second wall-clock budget (virtual threads)
@@ -265,7 +267,9 @@ Integration tests (`*IntegrationTest`) use Testcontainers to start real PostgreS
 
 ## API Documentation
 
-Once running, Swagger UI is available at:
+Swagger UI is enabled on the `local` profile only (disabled in production to prevent API enumeration).
+
+Once running locally, Swagger UI is available at:
 
 **http://localhost:8080/swagger-ui/index.html**
 
@@ -415,16 +419,25 @@ created_at                alert_id (FK)
 | `SPRING_DATA_REDIS_PORT` | `6379` | Redis port |
 | `SPRING_PROFILES_ACTIVE` | _(none)_ | Set to `local` to disable JWT auth |
 | `FRAUD_SCORE_THRESHOLD` | `60` | Minimum score to create a FraudAlert |
-| `FRAUD_SECURITY_JWT_SECRET` | _(configured in yml)_ | Base64-encoded JWT secret |
+| `JWT_SECRET` | _(fallback in yml — override in prod)_ | Base64-encoded HS256 signing secret — **must** be set via env var in every non-local deployment |
 
 ---
 
 ## Security
 
-When running with JWT enabled (all profiles except `local`):
+The service enforces four banking-grade controls:
+
+| Control | Production behaviour | Local override |
+|---------|---------------------|----------------|
+| **JWT auth** | Required on all endpoints except `/api/v1/auth/token` and `/actuator/health` | Disabled (`fraud.security.enabled: false`) |
+| **JWT secret** | Injected from `JWT_SECRET` environment variable | Falls back to default in yml |
+| **Swagger / OpenAPI** | Disabled (`springdoc.api-docs.enabled: false`) — API docs must not be publicly accessible | Enabled via `application-local.yml` |
+| **Error messages** | Suppressed (`server.error.include-message: never`) — prevents schema/stack-trace leakage | `always` in local profile |
+
+**Getting a token (all non-local profiles):**
 
 1. Call `POST /api/v1/auth/token` with any username and password to get a Bearer token
-2. Include `Authorization: Bearer <token>` on all API calls
+2. Include `Authorization: Bearer <token>` on all subsequent API calls
 3. Tokens expire after 24 hours (configurable via `fraud.security.jwt.expiration-ms`)
 
 > **Local profile fraud threshold:** The `local` profile lowers the fraud score threshold from **60** (production) to **20**. This means individual rules (e.g. NIGHT_TIME_ATM_RULE with weight 45, or ROUND_NUMBER_AMOUNT_RULE with weight 25) will trigger fraud alerts on their own, making it easy to demonstrate each rule independently in Bruno or Postman.
@@ -444,8 +457,8 @@ Rule thresholds are stored in PostgreSQL rather than hardcoded. This means risk 
 **Why Redis for velocity checks?**
 Redis sorted sets provide O(log N) time for both inserting and range-counting by score (timestamp). A sliding window query (`ZCOUNT key windowStart now`) is a single Redis command — no full table scans.
 
-**Why separate domain records from JPA entities?**
-`Transaction` and `RuleResult` are pure Java records with no framework annotations. The rule implementations receive these clean domain objects, making them trivially testable in isolation without Spring context or mocking JPA.
+**Why separate model records from JPA entities?**
+`Transaction` and `RuleResult` (in `model/` and `rule/`) are pure Java records with no framework annotations. The rule implementations receive these clean objects, making them trivially testable in isolation without a Spring context or JPA mocking.
 
 ---
 
