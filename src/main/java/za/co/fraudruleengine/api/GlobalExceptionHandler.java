@@ -11,10 +11,40 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 import java.util.stream.Collectors;
 
+/**
+ * Centralised exception handler that maps application and framework exceptions to structured
+ * RFC 7807 {@link ProblemDetail} HTTP responses.
+ *
+ * <p>Using {@code @RestControllerAdvice} ensures that all exceptions thrown from any controller
+ * in this application are intercepted here rather than being handled individually per controller,
+ * which keeps controller code focused on the happy path and ensures consistent error response
+ * shapes across all API endpoints.
+ *
+ * <p>Response bodies conform to RFC 7807 ({@code application/problem+json}) via Spring's
+ * built-in {@link ProblemDetail} support introduced in Spring 6. This provides clients with
+ * machine-readable {@code status}, {@code title}, and {@code detail} fields without a custom
+ * error DTO.
+ *
+ * <p>Log levels are deliberately varied by severity:
+ * <ul>
+ *   <li>Business rule / 404 / 400 errors: {@code WARN} or {@code DEBUG} — expected in normal operation</li>
+ *   <li>Unexpected 500 errors: {@code ERROR} with full stack trace — requires investigation</li>
+ * </ul>
+ */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /**
+     * Maps {@link IllegalArgumentException} to HTTP 404 Not Found.
+     *
+     * <p>Service layer methods (e.g. {@code findById}) throw {@code IllegalArgumentException}
+     * when a requested resource does not exist. This convention keeps the service layer free of
+     * HTTP concerns while still producing the semantically correct 404 response.
+     *
+     * @param ex the exception carrying the not-found detail message
+     * @return a {@link ProblemDetail} with status 404 and the exception message as the detail
+     */
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleNotFound(IllegalArgumentException ex) {
         log.warn("Resource not found: {}", ex.getMessage());
@@ -24,8 +54,15 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles type conversion failures on path variables and request parameters —
-     * e.g. GET /api/v1/transactions/not-a-uuid returns 400 instead of 500.
+     * Handles type conversion failures on path variables and request parameters.
+     *
+     * <p>For example, {@code GET /api/v1/transactions/not-a-uuid} will fail to bind the path
+     * variable to a {@link java.util.UUID} parameter, producing this exception. Without this
+     * handler, Spring would return a generic 500; this handler returns a meaningful 400 with the
+     * offending value and parameter name included in the response body.
+     *
+     * @param ex the mismatch exception describing the offending value and target type
+     * @return a {@link ProblemDetail} with status 400 and a descriptive message
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
@@ -36,6 +73,16 @@ public class GlobalExceptionHandler {
         return detail;
     }
 
+    /**
+     * Maps malformed or unreadable request body payloads to HTTP 400 Bad Request.
+     *
+     * <p>Triggered when the request body cannot be deserialised (e.g. invalid JSON syntax, an
+     * enum value that doesn't match any constant). The most specific cause message is extracted
+     * to avoid exposing internal stack traces to clients while still providing actionable detail.
+     *
+     * @param ex the exception describing the parse failure
+     * @return a {@link ProblemDetail} with status 400 and the parse error message
+     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ProblemDetail handleUnreadableMessage(HttpMessageNotReadableException ex) {
         log.warn("Unreadable request body: {}", ex.getMostSpecificCause().getMessage());
@@ -45,6 +92,16 @@ public class GlobalExceptionHandler {
         return detail;
     }
 
+    /**
+     * Maps Bean Validation constraint failures to HTTP 400 Bad Request with field-level detail.
+     *
+     * <p>All field errors from the binding result are aggregated into a single comma-separated
+     * message so that clients receive a complete picture of all validation failures in one
+     * response, rather than needing to fix and resubmit iteratively.
+     *
+     * @param ex the validation exception containing one or more field errors
+     * @return a {@link ProblemDetail} with status 400 and all field errors listed in the detail
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
         String errors = ex.getBindingResult().getFieldErrors().stream()
@@ -56,6 +113,16 @@ public class GlobalExceptionHandler {
         return detail;
     }
 
+    /**
+     * Catch-all handler for any unhandled exception, returning HTTP 500 Internal Server Error.
+     *
+     * <p>The detail message is intentionally vague to avoid leaking internal implementation
+     * details to clients. The full exception is logged at ERROR level so that the root cause
+     * can be investigated via application logs.
+     *
+     * @param ex the unexpected exception
+     * @return a {@link ProblemDetail} with status 500 and a generic error message
+     */
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGeneric(Exception ex) {
         log.error("Unexpected error", ex);
