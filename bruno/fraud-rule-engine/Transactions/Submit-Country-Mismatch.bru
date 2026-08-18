@@ -1,0 +1,68 @@
+meta {
+  name: Submit Country Mismatch (Fraud Trigger - COUNTRY_MISMATCH_RULE)
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "accountId": "ACC-007",
+    "amount": 1500.00,
+    "currency": "GBP",
+    "merchantName": "Harrods London",
+    "merchantCategory": "LUXURY",
+    "channel": "ONLINE",
+    "countryCode": "GBR",
+    "transactionTime": "2025-01-15T14:00:00"
+  }
+}
+
+docs {
+  ## Country Mismatch Rule — Prerequisite
+
+  COUNTRY_MISMATCH_RULE detects impossible-travel fraud by comparing the current
+  transaction's country code against the account's recent transaction history (24-hour window).
+
+  To trigger this rule you need TWO transactions on the same account:
+
+  **Step 1 — Establish baseline (run first):**
+  Submit-Clean-Transaction with `"accountId": "ACC-007"` and `"countryCode": "ZAF"`.
+  This creates prior history showing ACC-007 normally transacts in South Africa.
+
+  **Step 2 — This request:**
+  Submit this request for ACC-007 with `"countryCode": "GBR"`.
+  The rule detects ZAF in history vs GBR now → impossible travel → risk score +50.
+
+  If you run this request first (no prior history), the rule does NOT fire — that is
+  correct behaviour (no baseline to compare against, no false positive).
+
+  Rule weight: 50 — above the local profile threshold (20) on its own.
+}
+
+tests {
+  test("Status is 201 Created", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("Response has fraudulent flag and risk score", function() {
+    var json = res.getBody();
+    expect(json).to.have.property("fraudulent");
+    expect(json).to.have.property("riskScore");
+    // If a prior ZAF transaction exists for ACC-007, COUNTRY_MISMATCH_RULE fires (weight=50).
+    // Run Submit-Clean-Transaction first with accountId=ACC-007, countryCode=ZAF to establish baseline.
+  });
+}
+
+vars:post {
+  transactionId: res.body.id
+}

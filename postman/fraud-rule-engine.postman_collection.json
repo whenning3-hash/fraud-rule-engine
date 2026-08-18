@@ -856,9 +856,9 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "pm.test(\"Exactly 4 seeded rules returned\", function () {",
+                  "pm.test(\"Exactly 8 seeded rules returned\", function () {",
                   "    var json = pm.response.json();",
-                  "    pm.expect(json).to.be.an('array').with.lengthOf(4);",
+                  "    pm.expect(json).to.be.an('array').with.lengthOf(8);",
                   "});",
                   "",
                   "pm.test(\"All expected rules are present\", function () {",
@@ -894,11 +894,11 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "rules"]
             },
-            "description": "Returns all 4 seeded rule configurations."
+            "description": "Returns all 8 seeded rule configurations."
           },
           "response": [
             {
-              "name": "200 — All 4 rules",
+              "name": "200 — All 8 rules",
               "originalRequest": {
                 "method": "GET",
                 "header": [],

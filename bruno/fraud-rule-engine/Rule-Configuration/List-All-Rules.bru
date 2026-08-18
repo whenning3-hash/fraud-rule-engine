@@ -19,10 +19,10 @@ tests {
     expect(res.getStatus()).to.equal(200);
   });
 
-  test("Returns 4 seeded rules", function() {
+  test("Returns 8 seeded rules", function() {
     var json = res.getBody();
     expect(json).to.be.an("array");
-    expect(json.length).to.equal(4);
+    expect(json.length).to.equal(8);
   });
 
   test("All rules have required fields", function() {
@@ -36,12 +36,18 @@ tests {
     });
   });
 
-  test("Expected rule names present", function() {
+  test("All 8 expected rule names present", function() {
     var json = res.getBody();
     var names = json.map(function(r) { return r.ruleName; });
+    // V4 baseline rules
     expect(names).to.include("VELOCITY_RULE");
     expect(names).to.include("AMOUNT_THRESHOLD_RULE");
     expect(names).to.include("OFF_HOURS_RULE");
     expect(names).to.include("DUPLICATE_TRANSACTION_RULE");
+    // V5 Capitec-realistic rules
+    expect(names).to.include("ROUND_NUMBER_AMOUNT_RULE");
+    expect(names).to.include("NIGHT_TIME_ATM_RULE");
+    expect(names).to.include("COUNTRY_MISMATCH_RULE");
+    expect(names).to.include("UNUSUAL_MERCHANT_CATEGORY_RULE");
   });
 }

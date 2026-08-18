@@ -1,0 +1,31 @@
+meta {
+  name: Get Country Mismatch Rule
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/v1/rules/77777777-7777-7777-7777-777777777777
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Rule name is COUNTRY_MISMATCH_RULE", function() {
+    var json = res.getBody();
+    expect(json.ruleName).to.equal("COUNTRY_MISMATCH_RULE");
+  });
+
+  test("Parameters contain windowHours", function() {
+    var json = res.getBody();
+    expect(json.parameters).to.have.property("windowHours");
+  });
+}

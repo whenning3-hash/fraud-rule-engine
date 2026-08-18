@@ -1,0 +1,33 @@
+meta {
+  name: Get Night-Time ATM Rule
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/rules/66666666-6666-6666-6666-666666666666
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Rule name is NIGHT_TIME_ATM_RULE", function() {
+    var json = res.getBody();
+    expect(json.ruleName).to.equal("NIGHT_TIME_ATM_RULE");
+  });
+
+  test("Parameters contain startHour, endHour and minAmount", function() {
+    var json = res.getBody();
+    expect(json.parameters).to.have.property("startHour");
+    expect(json.parameters).to.have.property("endHour");
+    expect(json.parameters).to.have.property("minAmount");
+  });
+}

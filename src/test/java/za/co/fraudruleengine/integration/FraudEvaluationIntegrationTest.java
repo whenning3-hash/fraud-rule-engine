@@ -154,7 +154,7 @@ class FraudEvaluationIntegrationTest {
     void submitTransaction_highAmount_flaggedAsFraud() throws Exception {
         TransactionRequest request = new TransactionRequest(
                 "ACC-200", new BigDecimal("15000.00"), "ZAR",
-                "Luxury Jewellers", "LUXURY", "ONLINE", "ZA",
+                "Luxury Jewellers", "LUXURY", "ONLINE", "ZAF",
                 LocalDateTime.now().withHour(14));
 
         mockMvc.perform(post("/api/v1/transactions")
@@ -171,7 +171,7 @@ class FraudEvaluationIntegrationTest {
     void submitTransaction_offHoursOnly_flaggedAsFraud() throws Exception {
         TransactionRequest request = new TransactionRequest(
                 "ACC-300", new BigDecimal("500.00"), "ZAR",
-                "ATM Sandton", "ATM", "ATM", "ZA",
+                "ATM Sandton", "ATM", "ATM", "ZAF",
                 LocalDateTime.now().withHour(3).withMinute(30));
 
         mockMvc.perform(post("/api/v1/transactions")
@@ -189,7 +189,7 @@ class FraudEvaluationIntegrationTest {
         // Amount (R50k > R10k = +40) + Off-hours (03:00 = +20) = 60 >= threshold
         TransactionRequest request = new TransactionRequest(
                 "ACC-400", new BigDecimal("50000.00"), "ZAR",
-                "Suspect Store", "ELECTRONICS", "ONLINE", "ZA",
+                "Suspect Store", "ELECTRONICS", "ONLINE", "ZAF",
                 LocalDateTime.now().withHour(3));
 
         mockMvc.perform(post("/api/v1/transactions")
@@ -417,7 +417,7 @@ class FraudEvaluationIntegrationTest {
         // Submit off-hours transaction (only off-hours should have been triggered, but rule is disabled)
         TransactionRequest request = new TransactionRequest(
                 "ACC-TEST-DISABLED", new BigDecimal("500.00"), "ZAR",
-                "ATM Test", "ATM", "ATM", "ZA",
+                "ATM Test", "ATM", "ATM", "ZAF",
                 LocalDateTime.now().withHour(3));
 
         mockMvc.perform(post("/api/v1/transactions")
@@ -496,7 +496,7 @@ class FraudEvaluationIntegrationTest {
         // First submission — not a duplicate
         TransactionRequest request = new TransactionRequest(
                 "ACC-DUP", new BigDecimal("250.00"), "ZAR",
-                "Pick n Pay", "GROCERY", "CARD_PRESENT", "ZA",
+                "Pick n Pay", "GROCERY", "CARD_PRESENT", "ZAF",
                 LocalDateTime.now().withHour(10));
 
         mockMvc.perform(post("/api/v1/transactions")
@@ -603,7 +603,7 @@ class FraudEvaluationIntegrationTest {
     private void submitHighAmountTransaction(String accountId) throws Exception {
         TransactionRequest request = new TransactionRequest(
                 accountId, new BigDecimal("15000.00"), "ZAR",
-                "Luxury Store", "LUXURY", "ONLINE", "ZA",
+                "Luxury Store", "LUXURY", "ONLINE", "ZAF",
                 LocalDateTime.now().withHour(14));
         mockMvc.perform(post("/api/v1/transactions")
                         .contentType(MediaType.APPLICATION_JSON)

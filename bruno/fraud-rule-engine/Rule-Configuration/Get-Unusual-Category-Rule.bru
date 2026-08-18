@@ -1,0 +1,31 @@
+meta {
+  name: Get Unusual Merchant Category Rule
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/v1/rules/88888888-8888-8888-8888-888888888888
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Rule name is UNUSUAL_MERCHANT_CATEGORY_RULE", function() {
+    var json = res.getBody();
+    expect(json.ruleName).to.equal("UNUSUAL_MERCHANT_CATEGORY_RULE");
+  });
+
+  test("Risk weight is 15 (low — composite signal only)", function() {
+    var json = res.getBody();
+    expect(json.riskWeight).to.equal(15);
+  });
+}

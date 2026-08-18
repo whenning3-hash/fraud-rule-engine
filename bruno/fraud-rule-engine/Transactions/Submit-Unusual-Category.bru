@@ -1,0 +1,47 @@
+meta {
+  name: Submit Unusual Merchant Category (Signal - UNUSUAL_MERCHANT_CATEGORY_RULE)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "accountId": "ACC-008",
+    "amount": 3000.00,
+    "currency": "ZAR",
+    "merchantName": "Forex Exchange Bureau",
+    "merchantCategory": "FOREX",
+    "channel": "BRANCH",
+    "countryCode": "ZAF",
+    "transactionTime": "2025-01-15T10:00:00"
+  }
+}
+
+tests {
+  test("Status is 201 Created", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("Response has required fields", function() {
+    var json = res.getBody();
+    expect(json).to.have.property("fraudulent");
+    expect(json).to.have.property("riskScore");
+    // UNUSUAL_MERCHANT_CATEGORY_RULE fires (weight=15) on first-time FOREX usage.
+    // 15 < threshold(20) so not fraudulent alone — combine with other signals for full alert.
+    expect(json.riskScore).to.be.greaterThanOrEqualTo(15);
+  });
+}
+
+vars:post {
+  transactionId: res.body.id
+}

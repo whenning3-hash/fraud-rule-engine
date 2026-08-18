@@ -1,0 +1,32 @@
+meta {
+  name: Get Round Number Amount Rule
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/rules/55555555-5555-5555-5555-555555555555
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+tests {
+  test("Status is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Rule name is ROUND_NUMBER_AMOUNT_RULE", function() {
+    var json = res.getBody();
+    expect(json.ruleName).to.equal("ROUND_NUMBER_AMOUNT_RULE");
+  });
+
+  test("Parameters contain divisor and minAmount", function() {
+    var json = res.getBody();
+    expect(json.parameters).to.have.property("divisor");
+    expect(json.parameters).to.have.property("minAmount");
+  });
+}

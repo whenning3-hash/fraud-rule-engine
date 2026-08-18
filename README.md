@@ -41,7 +41,10 @@ The project follows a **layered hexagonal-lite** architecture:
 │  FraudRule (interface)    RuleEngine                  │
 │  VelocityRule             AmountThresholdRule         │
 │  OffHoursRule             DuplicateTransactionRule    │
+│  RoundNumberAmountRule    NightTimeAtmWithdrawalRule  │
+│  CountryMismatchRule      UnusualMerchantCategoryRule │
 │  Transaction (record)     RuleResult (record)         │
+│  TransactionHistoryPort   (Ports & Adapters)          │
 ├──────────────────────────────────────────────────────┤
 │                Infrastructure Layer                   │
 │  JPA Entities + Repositories   Redis VelocityStore   │
@@ -60,16 +63,20 @@ The project follows a **layered hexagonal-lite** architecture:
 
 ## Fraud Rules
 
-| Rule | Logic | Default Threshold | Risk Score |
+| Rule | Logic | Default Threshold | Risk Weight |
 |---|---|---|---|
 | **VELOCITY_RULE** | More than N transactions from same account in X minutes | 5 txns / 10 mins | 30 |
-| **AMOUNT_THRESHOLD_RULE** | Single transaction amount exceeds limit | ZAR 10,000 | 40 |
+| **AMOUNT_THRESHOLD_RULE** | Single transaction amount exceeds limit | ZAR 10,000 (strict greater-than) | 40 |
 | **OFF_HOURS_RULE** | Transaction between configurable off-hours | 00:00 – 05:00 | 20 |
 | **DUPLICATE_TRANSACTION_RULE** | Same account + amount + merchant within N seconds | 60 seconds | 35 |
+| **ROUND_NUMBER_AMOUNT_RULE** | Amount ≥ R5,000 AND exactly divisible by R1,000 (structuring) | R5,000 min, R1,000 divisor | 25 |
+| **NIGHT_TIME_ATM_RULE** | Channel is ATM/POS + off-hours (00:00–05:00) + amount ≥ R1,500 | All three must be true | 45 |
+| **COUNTRY_MISMATCH_RULE** | Current country differs from any country in the last 24 h | Different ISO 3166-1 country | 50 |
+| **UNUSUAL_MERCHANT_CATEGORY_RULE** | First-ever transaction in a given merchant category for the account | No prior history for that category | 15 |
 
-A **FraudAlert** is created when the combined risk score reaches or exceeds the configurable threshold (default: **60**).
+A **FraudAlert** is created when the combined risk score reaches or exceeds the configurable threshold (default: **60** in production; **20** on the `local` profile to allow individual rules to trigger alerts during demos).
 
-All thresholds are stored in the database and can be updated live via the Rules API.
+All thresholds and risk weights are stored in the database and can be updated live via the Rules API — no redeployment needed.
 
 ---
 
@@ -106,7 +113,7 @@ docker logs fraud-rule-engine
 
 The application starts on **http://localhost:8080** within ~5 seconds.
 
-Flyway runs automatically and creates all 4 tables plus seeds the 4 fraud rules.
+Flyway runs automatically and creates all required tables and seeds **8 fraud rules** (4 baseline + 4 Capitec-realistic patterns).
 
 > **Rancher Desktop users:** Docker is available at `unix://$HOME/.rd/docker.sock`. If the default
 > `docker` CLI doesn't connect, prefix commands with `DOCKER_HOST=unix://$HOME/.rd/docker.sock`
@@ -130,16 +137,35 @@ Bruno is the industry-standard API testing tool used at Capitec. The Bruno colle
 
 **Test sequence for a full fraud scenario:**
 ```
-1. Authentication > Get Token
-2. Transactions   > Submit High Amount        → fraudulent=true, riskScore=40
-3. Transactions   > Submit Off-Hours          → fraudulent=true, riskScore=20
-4. Transactions   > Submit Multi-Rule Breach  → fraudulent=true, riskScore=60
-5. Fraud Alerts   > List All Alerts           → alertId auto-saved
-6. Fraud Alerts   > Get Alert By ID           → see matched rules + rule details
-7. Fraud Alerts   > Update Status → REVIEWED
-8. Rule Config    > List All Rules            → 4 seeded rules
-9. Rule Config    > Update Velocity Rule      → live threshold change
-10. Transactions  > Submit Clean Transaction  → fraudulent=false
+── Authentication ─────────────────────────────────────────────────────────────
+ 1. Authentication > Get Token               → bearerToken auto-saved
+
+── Baseline rules ─────────────────────────────────────────────────────────────
+ 2. Transactions   > Submit High Amount      → AMOUNT_THRESHOLD_RULE fires (+40), fraudulent=true
+ 3. Transactions   > Submit Off-Hours        → OFF_HOURS_RULE fires (+20), fraudulent=true
+ 4. Transactions   > Submit Multi-Rule Breach→ AMOUNT+OFF_HOURS+ROUND fires, riskScore≥85, fraudulent=true
+
+── Capitec-realistic rules ────────────────────────────────────────────────────
+ 5. Transactions   > Submit Night-Time ATM   → NIGHT_TIME_ATM_RULE fires (+45), fraudulent=true
+ 6. Transactions   > Submit Round-Number     → ROUND_NUMBER_AMOUNT_RULE fires (+25), fraudulent=true
+ 7. Transactions   > Submit Clean (ACC-007)  → Establishes ZAF baseline for country mismatch
+ 8. Transactions   > Submit Country Mismatch → COUNTRY_MISMATCH_RULE fires (+50), fraudulent=true
+ 9. Transactions   > Submit Unusual Category → UNUSUAL_MERCHANT_CATEGORY_RULE fires (+15, signal only)
+
+── Alerts ─────────────────────────────────────────────────────────────────────
+10. Fraud Alerts   > List All Alerts         → all fraudulent transactions visible; alertId auto-saved
+11. Fraud Alerts   > Get Alert By ID         → see matchedRules array + ruleDetails JSON
+12. Fraud Alerts   > Update Status (REVIEWED → CLOSED)
+
+── Rule management ────────────────────────────────────────────────────────────
+13. Rule Config    > List All Rules          → all 8 rules, IDs, weights, parameters
+14. Rule Config    > Update Velocity Rule    → live weight/threshold change, no restart
+15. Rule Config    > Disable Off-Hours Rule  → test that disabled rule no longer fires
+16. Rule Config    > Re-enable Off-Hours Rule
+
+── Verification ───────────────────────────────────────────────────────────────
+17. Transactions   > Submit Clean Transaction→ fraudulent=false, no alert created
+18. Health         > Health Check            → {"status":"UP"}
 ```
 
 ---
@@ -227,7 +253,7 @@ OpenAPI JSON: **http://localhost:8080/api-docs**
 ```bash
 curl -X POST http://localhost:8080/api/v1/auth/token \
   -H "Content-Type: application/json" \
-  -d '{"username": "demo", "password": "demo"}'
+  -d '{"username": "admin", "password": "admin123"}'
 ```
 
 Use the returned token as `Authorization: Bearer <token>` on all subsequent requests.
@@ -252,12 +278,14 @@ curl -X POST http://localhost:8080/api/v1/transactions \
     "merchantName": "Luxury Watches",
     "merchantCategory": "RETAIL",
     "channel": "ONLINE",
-    "countryCode": "ZA",
+    "countryCode": "ZAF",
     "transactionTime": "2025-01-15T03:30:00"
   }'
 ```
 
 This transaction will trigger **AMOUNT_THRESHOLD_RULE** (R15,000 > R10,000) and **OFF_HOURS_RULE** (03:30), giving a combined score of 60 — a FraudAlert will be created.
+
+> **Country code format:** Use ISO 3166-1 alpha-3 three-letter codes: `ZAF` (South Africa), `GBR` (United Kingdom), `USA` (United States), `NAM` (Namibia), `MOZ` (Mozambique). The `countryCode` field is optional — if omitted, the country-mismatch rule is skipped for that transaction.
 
 ---
 
@@ -291,10 +319,26 @@ curl -X PATCH http://localhost:8080/api/v1/alerts/{id}/status \
 | `GET` | `/api/v1/rules/{id}` | Get a specific rule config |
 | `PATCH` | `/api/v1/rules/{id}` | Update rule thresholds, enabled flag, risk weight |
 
+**Seeded rule IDs** (pre-populated by Flyway migrations V4 + V5):
+
+| Rule Name | UUID |
+|---|---|
+| `VELOCITY_RULE` | `11111111-1111-1111-1111-111111111111` |
+| `AMOUNT_THRESHOLD_RULE` | `22222222-2222-2222-2222-222222222222` |
+| `OFF_HOURS_RULE` | `33333333-3333-3333-3333-333333333333` |
+| `DUPLICATE_TRANSACTION_RULE` | `44444444-4444-4444-4444-444444444444` |
+| `ROUND_NUMBER_AMOUNT_RULE` | `55555555-5555-5555-5555-555555555555` |
+| `NIGHT_TIME_ATM_RULE` | `66666666-6666-6666-6666-666666666666` |
+| `COUNTRY_MISMATCH_RULE` | `77777777-7777-7777-7777-777777777777` |
+| `UNUSUAL_MERCHANT_CATEGORY_RULE` | `88888888-8888-8888-8888-888888888888` |
+
+These IDs are stable — they are seeded by Flyway and never auto-generated, so the same IDs work across all environments. They are also pre-loaded as environment variables in the Bruno collection (`FRE-Local` environment).
+
 **Update a rule threshold:**
 ```bash
-curl -X PATCH http://localhost:8080/api/v1/rules/{id} \
+curl -X PATCH http://localhost:8080/api/v1/rules/22222222-2222-2222-2222-222222222222 \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{
     "enabled": true,
     "riskWeight": 45,
@@ -350,6 +394,8 @@ When running with JWT enabled (all profiles except `local`):
 1. Call `POST /api/v1/auth/token` with any username and password to get a Bearer token
 2. Include `Authorization: Bearer <token>` on all API calls
 3. Tokens expire after 24 hours (configurable via `fraud.security.jwt.expiration-ms`)
+
+> **Local profile fraud threshold:** The `local` profile lowers the fraud score threshold from **60** (production) to **20**. This means individual rules (e.g. NIGHT_TIME_ATM_RULE with weight 45, or ROUND_NUMBER_AMOUNT_RULE with weight 25) will trigger fraud alerts on their own, making it easy to demonstrate each rule independently in Bruno or Postman.
 
 > **Note:** The `/api/v1/auth/token` endpoint accepts any credentials for demo purposes. In a real production system this would validate against a user store or OAuth2 provider (e.g. Keycloak).
 
