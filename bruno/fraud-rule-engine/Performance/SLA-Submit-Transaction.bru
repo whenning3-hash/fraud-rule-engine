@@ -1,0 +1,97 @@
+meta {
+  name: SLA — Submit Transaction (< 500ms, handles 429)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "accountId": "ACC-PERF",
+    "amount": 250.00,
+    "currency": "ZAR",
+    "merchantName": "Performance Test Merchant",
+    "merchantCategory": "GROCERY",
+    "channel": "CARD_PRESENT",
+    "countryCode": "ZAF",
+    "transactionTime": "2025-06-01T10:00:00"
+  }
+}
+
+docs {
+  ## Performance SLA — Transaction Evaluation
+
+  This is the most expensive endpoint: it runs all 8 fraud rules (some with DB queries),
+  persists the transaction, and conditionally creates a fraud alert.
+
+  **SLA target: < 500ms per request**
+
+  Under load, the following bottlenecks can appear:
+  - HikariCP pool exhaustion (mitigated by pool-size=20 in application.yml)
+  - Redis timeout on velocity/duplicate lookups (mitigated by lettuce pool settings)
+  - Tomcat thread pool saturation (max=200 threads; accept-count=100 queued)
+  - Rate limiting: if this returns 429, the per-IP limit (120 req/min) was reached
+
+  **Running a load sweep with Bruno CLI:**
+  ```
+  # Install Bruno CLI if not already installed
+  npm install -g @usebruno/cli
+
+  # Run 100 iterations with 200ms between requests (~5 req/sec)
+  bru run Performance/SLA-Submit-Transaction.bru \
+      --env FRE-Local \
+      --iteration-count 100 \
+      --delay 200
+
+  # Faster burst: 50 requests with no delay (~concurrent simulation)
+  bru run Performance/SLA-Submit-Transaction.bru \
+      --env FRE-Local \
+      --iteration-count 50 \
+      --delay 0
+  ```
+
+  **Interpreting results:**
+  - All 201s under load → system healthy, pool tuning sufficient
+  - Mix of 201 and 429 → rate limit is working; expected if > 120 req/min per IP
+  - 500 errors → connection pool or DB saturation; increase hikari.maximum-pool-size
+  - P99 > 500ms → investigate with --verbose flag or check Docker container stats
+}
+
+tests {
+  test("Status is 201 Created or 429 Rate Limited", function() {
+    var status = res.getStatus();
+    expect([201, 429]).to.include(status);
+  });
+
+  test("SLA: response time < 500ms", function() {
+    // This assertion applies even for 429 responses — the rate limiter itself must be fast.
+    expect(res.getResponseTime()).to.be.lessThan(500);
+  });
+
+  test("201: fraud evaluation result present", function() {
+    if (res.getStatus() === 201) {
+      var json = res.getBody();
+      expect(json).to.have.property("fraudulent");
+      expect(json).to.have.property("riskScore");
+    }
+  });
+
+  test("429: Retry-After header present", function() {
+    if (res.getStatus() === 429) {
+      expect(res.getHeader("Retry-After")).to.exist;
+    }
+  });
+}
+
+vars:post {
+  transactionId: res.body.id
+}

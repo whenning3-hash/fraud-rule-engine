@@ -148,8 +148,8 @@ Bruno is the industry-standard API testing tool used at Capitec. The Bruno colle
 ── Capitec-realistic rules ────────────────────────────────────────────────────
  5. Transactions   > Submit Night-Time ATM   → NIGHT_TIME_ATM_RULE fires (+45), fraudulent=true
  6. Transactions   > Submit Round-Number     → ROUND_NUMBER_AMOUNT_RULE fires (+25), fraudulent=true
- 7. Transactions   > Submit Clean (ACC-007)  → Establishes ZAF baseline for country mismatch
- 8. Transactions   > Submit Country Mismatch → COUNTRY_MISMATCH_RULE fires (+50), fraudulent=true
+ 7. Transactions   > Submit Country Baseline ZAF → Establishes ZAF history for ACC-007 (clean, score=15)
+ 8. Transactions   > Submit Country Mismatch    → COUNTRY_MISMATCH_RULE fires (+50), fraudulent=true
  9. Transactions   > Submit Unusual Category → UNUSUAL_MERCHANT_CATEGORY_RULE fires (+15, signal only)
 
 ── Alerts ─────────────────────────────────────────────────────────────────────

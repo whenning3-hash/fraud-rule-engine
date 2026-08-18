@@ -123,6 +123,12 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Commons Pool2 — required to activate the Lettuce Redis connection pool -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>
+
         <!-- Flyway -->
         <dependency>
             <groupId>org.flywaydb</groupId>

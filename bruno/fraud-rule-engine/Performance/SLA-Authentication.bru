@@ -1,0 +1,49 @@
+meta {
+  name: SLA — Authentication Token (< 500ms)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/token
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "username": "admin",
+    "password": "admin123"
+  }
+}
+
+docs {
+  ## Performance SLA — Authentication
+
+  Asserts that the /api/v1/auth/token endpoint responds within 500ms.
+  JWT generation involves BCrypt password verification (intentionally slow for security)
+  so this SLA is more relaxed than the read-only endpoints.
+
+  Expected timing breakdown:
+  - BCrypt password check: ~100–300ms (depends on cost factor)
+  - JWT signing: < 5ms
+  - Total target: < 500ms
+}
+
+tests {
+  test("Status is 200 OK", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Response contains JWT token", function() {
+    expect(res.getBody()).to.have.property("token");
+  });
+
+  test("SLA: response time < 500ms", function() {
+    expect(res.getResponseTime()).to.be.lessThan(500);
+  });
+}
+
+vars:post {
+  bearerToken: res.body.token
+}

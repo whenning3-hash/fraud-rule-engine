@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "fre-collection-v1",
     "name": "Fraud Rule Engine API",
-    "description": "# Fraud Rule Engine — Complete API Collection\n\nSpring Boot 4 + Java 25 microservice that evaluates configurable fraud rules against transaction events.\n\n## Quick Start\n1. Import **both** the collection and the matching environment file.\n2. Select the **FRE — Local** environment.\n3. Run the **🔑 Get Token** request first — the token is saved automatically.\n4. All subsequent requests use `{{bearerToken}}` transparently.\n\n## Environments\n- `FRE — Local` → `http://localhost:8080` (security disabled by default on `local` profile)\n- `FRE — Production` → configure `baseUrl` + real JWT secret\n\n## Fraud Rules (seeded on startup)\n| Rule | UUID | Risk Weight |\n|---|---|---|\n| VELOCITY_RULE | `11111111-...` | 30 |\n| AMOUNT_THRESHOLD_RULE | `22222222-...` | 40 |\n| OFF_HOURS_RULE | `33333333-...` | 20 |\n| DUPLICATE_TRANSACTION_RULE | `44444444-...` | 35 |\n\nScore ≥ 60 → alert raised automatically.",
+    "description": "# Fraud Rule Engine \u2014 Complete API Collection\n\nSpring Boot 4 + Java 25 microservice that evaluates configurable fraud rules against transaction events.\n\n## Quick Start\n1. Import **both** the collection and the matching environment file.\n2. Select the **FRE \u2014 Local** environment.\n3. Run the **\ud83d\udd11 Get Token** request first \u2014 the token is saved automatically.\n4. All subsequent requests use `{{bearerToken}}` transparently.\n\n## Environments\n- `FRE \u2014 Local` \u2192 `http://localhost:8080` (security disabled by default on `local` profile)\n- `FRE \u2014 Production` \u2192 configure `baseUrl` + real JWT secret\n\n## Fraud Rules (seeded on startup)\n| Rule | UUID | Risk Weight |\n|---|---|---|\n| VELOCITY_RULE | `11111111-...` | 30 |\n| AMOUNT_THRESHOLD_RULE | `22222222-...` | 40 |\n| OFF_HOURS_RULE | `33333333-...` | 20 |\n| DUPLICATE_TRANSACTION_RULE | `44444444-...` | 35 |\n\nScore \u2265 60 \u2192 alert raised automatically.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -29,8 +29,8 @@
   ],
   "item": [
     {
-      "name": "🔑 Authentication",
-      "description": "Obtain a JWT Bearer token. On the `local` Spring profile, security is disabled so the token is optional — but running this first ensures the collection works identically on all environments.",
+      "name": "\ud83d\udd11 Authentication",
+      "description": "Obtain a JWT Bearer token. On the `local` Spring profile, security is disabled so the token is optional \u2014 but running this first ensures the collection works identically on all environments.",
       "item": [
         {
           "name": "Get Token",
@@ -56,7 +56,7 @@
                   "var json = pm.response.json();",
                   "pm.environment.set('bearerToken', json.accessToken);",
                   "pm.collectionVariables.set('bearerToken', json.token);",
-                  "console.log('✅ JWT token saved. Expires in: ' + json.expiresIn + 'ms');"
+                  "console.log('\u2705 JWT token saved. Expires in: ' + json.expiresIn + 'ms');"
                 ]
               }
             }
@@ -64,61 +64,109 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"username\": \"fraud-analyst\",\n  \"password\": \"P@ssword123\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/token",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "token"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "token"
+              ]
             },
             "description": "Obtain a JWT Bearer token.\n\n**Note (local profile):** security is disabled (`fraud.security.enabled=false`), so the token is issued but not enforced. On production, include it as `Authorization: Bearer <token>`."
           },
           "response": [
             {
-              "name": "200 — Token Issued",
+              "name": "200 \u2014 Token Issued",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"username\": \"fraud-analyst\",\n  \"password\": \"P@ssword123\"\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api/v1/auth/token",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "v1", "auth", "token"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "token"
+                  ]
                 }
               },
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\n  \"token\": \"<generated-jwt-token>\",\n  \"tokenType\": \"Bearer\",\n  \"expiresIn\": 86400000\n}"
             },
             {
-              "name": "400 — Missing username",
+              "name": "400 \u2014 Missing username",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"password\": \"P@ssword123\"\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api/v1/auth/token",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "v1", "auth", "token"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "token"
+                  ]
                 }
               },
               "status": "Bad Request",
               "code": 400,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json"
+                }
+              ],
               "body": "{\n  \"type\": \"about:blank\",\n  \"title\": \"Bad Request\",\n  \"status\": 400,\n  \"detail\": \"Username is required\",\n  \"instance\": \"/api/v1/auth/token\"\n}"
             }
           ]
@@ -126,11 +174,11 @@
       ]
     },
     {
-      "name": "💳 Transactions",
+      "name": "\ud83d\udcb3 Transactions",
       "description": "Submit transactions for real-time fraud evaluation and retrieve their results.",
       "item": [
         {
-          "name": "Submit Transaction — Clean (no fraud)",
+          "name": "Submit Transaction \u2014 Clean (no fraud)",
           "event": [
             {
               "listen": "prerequest",
@@ -157,7 +205,7 @@
                   "    pm.expect(json.id).to.match(/^[0-9a-f]{8}-/);",
                   "    pm.collectionVariables.set('lastTransactionId', json.id);",
                   "    pm.environment.set('lastTransactionId', json.id);",
-                  "    console.log('✅ Transaction ID saved: ' + json.id);",
+                  "    console.log('\u2705 Transaction ID saved: ' + json.id);",
                   "});",
                   "",
                   "pm.test(\"Transaction has fraud evaluation result\", function () {",
@@ -179,51 +227,89 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-Request-ID", "value": "{{$guid}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accountId\": \"ACC-001\",\n  \"amount\": 150.00,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Pick n Pay Stellenbosch\",\n  \"merchantCategory\": \"GROCERY\",\n  \"channel\": \"POS\",\n  \"countryCode\": \"ZA\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"accountId\": \"ACC-001\",\n  \"amount\": 150.00,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Pick n Pay Stellenbosch\",\n  \"merchantCategory\": \"GROCERY\",\n  \"channel\": \"POS\",\n  \"countryCode\": \"ZAF\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/transactions",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "transactions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
             },
-            "description": "Normal low-value domestic transaction — should score below 60 and **not** trigger a fraud alert."
+            "description": "Normal low-value domestic transaction \u2014 should score below 60 and **not** trigger a fraud alert."
           },
           "response": [
             {
-              "name": "201 — Clean transaction",
+              "name": "201 \u2014 Clean transaction",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"accountId\": \"ACC-001\",\n  \"amount\": 150.00,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Pick n Pay Stellenbosch\",\n  \"merchantCategory\": \"GROCERY\",\n  \"channel\": \"POS\",\n  \"countryCode\": \"ZA\",\n  \"transactionTime\": \"2025-08-18T14:00:00\"\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api/v1/transactions",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "v1", "transactions"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "transactions"
+                  ]
                 }
               },
               "status": "Created",
               "code": 201,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\n  \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n  \"accountId\": \"ACC-001\",\n  \"amount\": 150.00,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Pick n Pay Stellenbosch\",\n  \"merchantCategory\": \"GROCERY\",\n  \"channel\": \"POS\",\n  \"countryCode\": \"ZA\",\n  \"transactionTime\": \"2025-08-18T14:00:00\",\n  \"fraudulent\": false,\n  \"riskScore\": 0,\n  \"status\": \"APPROVED\",\n  \"alertId\": null\n}"
             }
           ]
         },
         {
-          "name": "Submit Transaction — High Amount (fraud trigger)",
+          "name": "Submit Transaction \u2014 High Amount (fraud trigger)",
           "event": [
             {
               "listen": "prerequest",
@@ -255,7 +341,7 @@
                   "    pm.expect(json.fraudulent).to.be.true;",
                   "    pm.collectionVariables.set('lastAlertId', json.alertId);",
                   "    pm.environment.set('lastAlertId', json.alertId);",
-                  "    console.log('🚨 Alert raised: ' + json.alertId);",
+                  "    console.log('\ud83d\udea8 Alert raised: ' + json.alertId);",
                   "});"
                 ]
               }
@@ -264,51 +350,89 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-Request-ID", "value": "{{$guid}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accountId\": \"ACC-002\",\n  \"amount\": 15000.00,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Luxury Jewellers Cape Town\",\n  \"merchantCategory\": \"LUXURY\",\n  \"channel\": \"ONLINE\",\n  \"countryCode\": \"ZA\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"accountId\": \"ACC-002\",\n  \"amount\": 15000.00,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Luxury Jewellers Cape Town\",\n  \"merchantCategory\": \"LUXURY\",\n  \"channel\": \"ONLINE\",\n  \"countryCode\": \"ZAF\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/transactions",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "transactions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
             },
-            "description": "Amount of R15,000 exceeds the AMOUNT_THRESHOLD_RULE limit of R10,000 → risk score ≥ 40 → fraud alert raised."
+            "description": "Amount of R15,000 exceeds the AMOUNT_THRESHOLD_RULE limit of R10,000 \u2192 risk score \u2265 40 \u2192 fraud alert raised."
           },
           "response": [
             {
-              "name": "201 — Flagged (high amount)",
+              "name": "201 \u2014 Flagged (high amount)",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"accountId\": \"ACC-002\",\n  \"amount\": 15000.00,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Luxury Jewellers Cape Town\",\n  \"merchantCategory\": \"LUXURY\",\n  \"channel\": \"ONLINE\",\n  \"countryCode\": \"ZA\",\n  \"transactionTime\": \"2025-08-18T14:30:00\"\n}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api/v1/transactions",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "v1", "transactions"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "transactions"
+                  ]
                 }
               },
               "status": "Created",
               "code": 201,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\n  \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n  \"accountId\": \"ACC-002\",\n  \"amount\": 15000.00,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Luxury Jewellers Cape Town\",\n  \"merchantCategory\": \"LUXURY\",\n  \"channel\": \"ONLINE\",\n  \"countryCode\": \"ZA\",\n  \"transactionTime\": \"2025-08-18T14:30:00\",\n  \"fraudulent\": true,\n  \"riskScore\": 40,\n  \"status\": \"FLAGGED\",\n  \"alertId\": \"c3d4e5f6-a7b8-9012-cdef-123456789012\"\n}"
             }
           ]
         },
         {
-          "name": "Submit Transaction — Off Hours (fraud trigger)",
+          "name": "Submit Transaction \u2014 Off Hours (fraud trigger)",
           "event": [
             {
               "listen": "prerequest",
@@ -341,28 +465,50 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-Request-ID", "value": "{{$guid}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accountId\": \"ACC-003\",\n  \"amount\": 500.00,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"24hr ATM Withdrawal\",\n  \"merchantCategory\": \"ATM\",\n  \"channel\": \"ATM\",\n  \"countryCode\": \"ZA\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"accountId\": \"ACC-003\",\n  \"amount\": 500.00,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"24hr ATM Withdrawal\",\n  \"merchantCategory\": \"ATM\",\n  \"channel\": \"ATM\",\n  \"countryCode\": \"ZAF\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/transactions",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "transactions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
             },
-            "description": "Transaction timestamped at 02:15 AM — within the OFF_HOURS_RULE window (midnight–05:00) → adds 20 risk points."
+            "description": "Transaction timestamped at 02:15 AM \u2014 within the OFF_HOURS_RULE window (midnight\u201305:00) \u2192 adds 20 risk points."
           }
         },
         {
-          "name": "Submit Transaction — Multi-Rule Breach (high + off-hours)",
+          "name": "Submit Transaction \u2014 Multi-Rule Breach (high + off-hours)",
           "event": [
             {
               "listen": "prerequest",
@@ -403,24 +549,46 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-Request-ID", "value": "{{$guid}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Request-ID",
+                "value": "{{$guid}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"accountId\": \"ACC-004\",\n  \"amount\": 25000.00,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Unknown Online Store\",\n  \"merchantCategory\": \"ELECTRONICS\",\n  \"channel\": \"ONLINE\",\n  \"countryCode\": \"NG\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/transactions",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "transactions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
             },
-            "description": "R25,000 at 01:30 AM → AMOUNT_THRESHOLD_RULE (40) + OFF_HOURS_RULE (20) = **60 points** → alert raised."
+            "description": "R25,000 at 01:30 AM \u2192 AMOUNT_THRESHOLD_RULE (40) + OFF_HOURS_RULE (20) = **60 points** \u2192 alert raised."
           }
         },
         {
@@ -454,39 +622,64 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "GET",
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/transactions/{{lastTransactionId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "transactions", "{{lastTransactionId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions",
+                "{{lastTransactionId}}"
+              ]
             },
-            "description": "Fetch the transaction submitted earlier. The `lastTransactionId` variable is auto-populated by the **Submit Transaction — Clean** request."
+            "description": "Fetch the transaction submitted earlier. The `lastTransactionId` variable is auto-populated by the **Submit Transaction \u2014 Clean** request."
           },
           "response": [
             {
-              "name": "404 — Not Found",
+              "name": "404 \u2014 Not Found",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/api/v1/transactions/00000000-0000-0000-0000-000000000000",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "v1", "transactions", "00000000-0000-0000-0000-000000000000"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "transactions",
+                    "00000000-0000-0000-0000-000000000000"
+                  ]
                 }
               },
               "status": "Not Found",
               "code": 404,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/problem+json"
+                }
+              ],
               "body": "{\n  \"type\": \"about:blank\",\n  \"title\": \"Not Found\",\n  \"status\": 404,\n  \"detail\": \"Transaction not found: 00000000-0000-0000-0000-000000000000\",\n  \"instance\": \"/api/v1/transactions/00000000-0000-0000-0000-000000000000\"\n}"
             }
           ]
         },
         {
-          "name": "Submit Transaction — Validation Error (400)",
+          "name": "Submit Transaction \u2014 Validation Error (400)",
           "event": [
             {
               "listen": "test",
@@ -510,29 +703,387 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"accountId\": \"\",\n  \"amount\": -50,\n  \"currency\": \"INVALID_CODE\",\n  \"merchantName\": \"\",\n  \"channel\": \"\",\n  \"transactionTime\": null\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/transactions",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "transactions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
             },
             "description": "Intentionally malformed request to verify Jakarta Bean Validation and RFC 9457 ProblemDetail error format."
+          }
+        },
+        {
+          "name": "Submit Transaction \u2014 Night-Time ATM (fraud trigger)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Set a fresh timestamp so the transaction isn't flagged as duplicate\npm.environment.set('txTimestamp', new Date().toISOString().slice(0, 19));\n// Force off-hours time (02:15)\npm.environment.set('txTimestamp', new Date().toISOString().slice(0,11) + '02:15:00');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"NIGHT_TIME_ATM_RULE fires \u2014 fraudulent\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.fraudulent).to.be.true;",
+                  "    pm.expect(json.riskScore).to.be.at.least(45);",
+                  "});",
+                  "pm.environment.set('lastTransactionId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"ACC-005\",\n  \"amount\": 2000.0,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"ABSA ATM Sandton\",\n  \"merchantCategory\": \"CASH\",\n  \"channel\": \"ATM\",\n  \"countryCode\": \"ZAF\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Submit Transaction \u2014 Round Number Amount (fraud trigger)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Set a fresh timestamp so the transaction isn't flagged as duplicate\npm.environment.set('txTimestamp', new Date().toISOString().slice(0, 19));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"ROUND_NUMBER_AMOUNT_RULE fires \u2014 fraudulent\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.fraudulent).to.be.true;",
+                  "    pm.expect(json.riskScore).to.be.at.least(25);",
+                  "});",
+                  "pm.environment.set('lastTransactionId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"ACC-006\",\n  \"amount\": 10000.0,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Cash Deposit\",\n  \"merchantCategory\": \"BANKING\",\n  \"channel\": \"BRANCH\",\n  \"countryCode\": \"ZAF\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Submit Transaction \u2014 Country Baseline ZAF (run before Country Mismatch)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Set a fresh timestamp so the transaction isn't flagged as duplicate\npm.environment.set('txTimestamp', new Date().toISOString().slice(0, 19));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Baseline is clean (not fraudulent)\", function () {",
+                  "    pm.expect(pm.response.json().fraudulent).to.be.false;",
+                  "});",
+                  "// Save the baseline ID; the next request (Country Mismatch) uses the same accountId.",
+                  "pm.environment.set('lastTransactionId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"ACC-007\",\n  \"amount\": 800.0,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Woolworths Cape Town\",\n  \"merchantCategory\": \"RETAIL\",\n  \"channel\": \"CARD_PRESENT\",\n  \"countryCode\": \"ZAF\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Submit Transaction \u2014 Country Mismatch GBR (fraud trigger, run after Baseline ZAF)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Set a fresh timestamp so the transaction isn't flagged as duplicate\npm.environment.set('txTimestamp', new Date().toISOString().slice(0, 19));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"COUNTRY_MISMATCH_RULE fires \u2014 fraudulent\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.fraudulent).to.be.true;",
+                  "    pm.expect(json.riskScore).to.be.at.least(50);",
+                  "});",
+                  "pm.environment.set('lastTransactionId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"ACC-007\",\n  \"amount\": 1500.0,\n  \"currency\": \"GBP\",\n  \"merchantName\": \"Harrods London\",\n  \"merchantCategory\": \"LUXURY\",\n  \"channel\": \"ONLINE\",\n  \"countryCode\": \"GBR\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Submit Transaction \u2014 Unusual Merchant Category (first-time FOREX)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Set a fresh timestamp so the transaction isn't flagged as duplicate\npm.environment.set('txTimestamp', new Date().toISOString().slice(0, 19));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201 Created\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"UNUSUAL_MERCHANT_CATEGORY_RULE fires \u2014 low weight composite signal\", function () {",
+                  "    var json = pm.response.json();",
+                  "    // Weight 15 alone is below the local profile threshold (20) so this is clean",
+                  "    // unless combined with other rules. Verify score includes 15 from this rule.",
+                  "    pm.expect(json.riskScore).to.be.at.least(15);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"ACC-008\",\n  \"amount\": 3000.0,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Rand Merchant Bank FOREX\",\n  \"merchantCategory\": \"FOREX\",\n  \"channel\": \"BRANCH\",\n  \"countryCode\": \"ZAF\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            }
           }
         }
       ]
     },
     {
-      "name": "🚨 Fraud Alerts",
+      "name": "\ud83d\udea8 Fraud Alerts",
       "description": "Query and manage fraud alerts raised by the rule engine. Supports filtering by account, status, and pagination.",
       "item": [
         {
@@ -560,7 +1111,7 @@
                   "if (json.content && json.content.length > 0) {",
                   "    pm.collectionVariables.set('lastAlertId', json.content[0].id);",
                   "    pm.environment.set('lastAlertId', json.content[0].id);",
-                  "    console.log('ℹ️ First alert ID: ' + json.content[0].id);",
+                  "    console.log('\u2139\ufe0f First alert ID: ' + json.content[0].id);",
                   "}"
                 ]
               }
@@ -569,25 +1120,46 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "GET",
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/alerts?page=0&size=20&sort=createdAt,desc",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "alerts"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts"
+              ],
               "query": [
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "20" },
-                { "key": "sort", "value": "createdAt,desc" }
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt,desc"
+                }
               ]
             },
             "description": "List all fraud alerts, newest first. Supports server-side pagination via Spring Data `Pageable`."
           }
         },
         {
-          "name": "List Alerts — Filter by Account",
+          "name": "List Alerts \u2014 Filter by Account",
           "event": [
             {
               "listen": "test",
@@ -611,25 +1183,46 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "GET",
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/alerts?accountId=ACC-002&page=0&size=10",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "alerts"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts"
+              ],
               "query": [
-                { "key": "accountId", "value": "ACC-002" },
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "10" }
+                {
+                  "key": "accountId",
+                  "value": "ACC-002"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
               ]
             },
             "description": "Filter alerts by `accountId`. Replace `ACC-002` with any account used in the Transaction requests above."
           }
         },
         {
-          "name": "List Alerts — Filter by Status (OPEN)",
+          "name": "List Alerts \u2014 Filter by Status (OPEN)",
           "event": [
             {
               "listen": "test",
@@ -653,18 +1246,39 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "GET",
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/alerts?status=OPEN&page=0&size=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "alerts"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts"
+              ],
               "query": [
-                { "key": "status", "value": "OPEN" },
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "20" }
+                {
+                  "key": "status",
+                  "value": "OPEN"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
               ]
             },
             "description": "Filter by status. Valid values: `OPEN`, `INVESTIGATING`, `RESOLVED`, `FALSE_POSITIVE`."
@@ -702,20 +1316,33 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "GET",
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/alerts/{{lastAlertId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "alerts", "{{lastAlertId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts",
+                "{{lastAlertId}}"
+              ]
             },
             "description": "Retrieve a specific alert including all matched rule names and their individual risk scores.\n\n`lastAlertId` is auto-set by the fraud-triggering Transaction requests."
           }
         },
         {
-          "name": "Update Alert Status → REVIEWED",
+          "name": "Update Alert Status \u2192 REVIEWED",
           "event": [
             {
               "listen": "test",
@@ -737,27 +1364,48 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"INVESTIGATING\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/alerts/{{lastAlertId}}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "alerts", "{{lastAlertId}}", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts",
+                "{{lastAlertId}}",
+                "status"
+              ]
             },
-            "description": "Move an alert through its lifecycle.\n\nValid statuses: `OPEN` → `INVESTIGATING` → `RESOLVED` or `FALSE_POSITIVE`."
+            "description": "Move an alert through its lifecycle.\n\nValid statuses: `OPEN` \u2192 `INVESTIGATING` \u2192 `RESOLVED` or `FALSE_POSITIVE`."
           }
         },
         {
-          "name": "Update Alert Status → CLOSED",
+          "name": "Update Alert Status \u2192 CLOSED",
           "event": [
             {
               "listen": "test",
@@ -779,26 +1427,47 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"RESOLVED\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/alerts/{{lastAlertId}}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "alerts", "{{lastAlertId}}", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts",
+                "{{lastAlertId}}",
+                "status"
+              ]
             }
           }
         },
         {
-          "name": "Reopen Alert → OPEN",
+          "name": "Reopen Alert \u2192 OPEN",
           "event": [
             {
               "listen": "test",
@@ -820,29 +1489,50 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"FALSE_POSITIVE\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/alerts/{{lastAlertId}}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "alerts", "{{lastAlertId}}", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts",
+                "{{lastAlertId}}",
+                "status"
+              ]
             }
           }
         }
       ]
     },
     {
-      "name": "⚙️ Rule Configuration",
-      "description": "View and dynamically tune fraud rule thresholds at runtime — no restart required. Changes take effect immediately on the next transaction evaluation.",
+      "name": "\u2699\ufe0f Rule Configuration",
+      "description": "View and dynamically tune fraud rule thresholds at runtime \u2014 no restart required. Changes take effect immediately on the next transaction evaluation.",
       "item": [
         {
           "name": "List All Rules",
@@ -885,33 +1575,56 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "GET",
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/rules",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "rules"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rules"
+              ]
             },
             "description": "Returns all 8 seeded rule configurations."
           },
           "response": [
             {
-              "name": "200 — All 8 rules",
+              "name": "200 \u2014 All 8 rules",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/api/v1/rules",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "v1", "rules"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "rules"
+                  ]
                 }
               },
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "[\n  {\n    \"id\": \"11111111-1111-1111-1111-111111111111\",\n    \"ruleName\": \"VELOCITY_RULE\",\n    \"enabled\": true,\n    \"riskWeight\": 30,\n    \"parameters\": { \"maxTransactions\": \"5\", \"windowMinutes\": \"10\" }\n  },\n  {\n    \"id\": \"22222222-2222-2222-2222-222222222222\",\n    \"ruleName\": \"AMOUNT_THRESHOLD_RULE\",\n    \"enabled\": true,\n    \"riskWeight\": 40,\n    \"parameters\": { \"maxAmount\": \"10000.00\" }\n  },\n  {\n    \"id\": \"33333333-3333-3333-3333-333333333333\",\n    \"ruleName\": \"OFF_HOURS_RULE\",\n    \"enabled\": true,\n    \"riskWeight\": 20,\n    \"parameters\": { \"startHour\": \"0\", \"endHour\": \"5\" }\n  },\n  {\n    \"id\": \"44444444-4444-4444-4444-444444444444\",\n    \"ruleName\": \"DUPLICATE_TRANSACTION_RULE\",\n    \"enabled\": true,\n    \"riskWeight\": 35,\n    \"parameters\": { \"windowSeconds\": \"60\" }\n  }\n]"
             }
           ]
@@ -942,16 +1655,213 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "GET",
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/rules/11111111-1111-1111-1111-111111111111",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "rules", "11111111-1111-1111-1111-111111111111"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rules",
+                "11111111-1111-1111-1111-111111111111"
+              ]
             },
-            "description": "VELOCITY_RULE — triggers when an account exceeds `maxTransactions` in `windowMinutes`."
+            "description": "VELOCITY_RULE \u2014 triggers when an account exceeds `maxTransactions` in `windowMinutes`."
+          }
+        },
+        {
+          "name": "Get Round Number Amount Rule",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Rule name is ROUND_NUMBER_AMOUNT_RULE\", function () {",
+                  "    pm.expect(pm.response.json().ruleName).to.eql('ROUND_NUMBER_AMOUNT_RULE');",
+                  "});",
+                  "pm.test(\"Default risk weight is 25\", function () {",
+                  "    pm.expect(pm.response.json().riskWeight).to.eql(25);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rules/55555555-5555-5555-5555-555555555555",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rules",
+                "55555555-5555-5555-5555-555555555555"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Night-Time ATM Rule",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Rule name is NIGHT_TIME_ATM_RULE\", function () {",
+                  "    pm.expect(pm.response.json().ruleName).to.eql('NIGHT_TIME_ATM_RULE');",
+                  "});",
+                  "pm.test(\"Default risk weight is 45\", function () {",
+                  "    pm.expect(pm.response.json().riskWeight).to.eql(45);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rules/66666666-6666-6666-6666-666666666666",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rules",
+                "66666666-6666-6666-6666-666666666666"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Country Mismatch Rule",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Rule name is COUNTRY_MISMATCH_RULE\", function () {",
+                  "    pm.expect(pm.response.json().ruleName).to.eql('COUNTRY_MISMATCH_RULE');",
+                  "});",
+                  "pm.test(\"Default risk weight is 50\", function () {",
+                  "    pm.expect(pm.response.json().riskWeight).to.eql(50);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rules/77777777-7777-7777-7777-777777777777",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rules",
+                "77777777-7777-7777-7777-777777777777"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Unusual Merchant Category Rule",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Rule name is UNUSUAL_MERCHANT_CATEGORY_RULE\", function () {",
+                  "    pm.expect(pm.response.json().ruleName).to.eql('UNUSUAL_MERCHANT_CATEGORY_RULE');",
+                  "});",
+                  "pm.test(\"Default risk weight is 15\", function () {",
+                  "    pm.expect(pm.response.json().riskWeight).to.eql(15);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/rules/88888888-8888-8888-8888-888888888888",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rules",
+                "88888888-8888-8888-8888-888888888888"
+              ]
+            }
           }
         },
         {
@@ -977,20 +1887,33 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "GET",
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/rules/22222222-2222-2222-2222-222222222222",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "rules", "22222222-2222-2222-2222-222222222222"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rules",
+                "22222222-2222-2222-2222-222222222222"
+              ]
             },
-            "description": "AMOUNT_THRESHOLD_RULE — triggers when `amount` exceeds `maxAmount` (default: R10,000)."
+            "description": "AMOUNT_THRESHOLD_RULE \u2014 triggers when `amount` exceeds `maxAmount` (default: R10,000)."
           }
         },
         {
-          "name": "Update Velocity Rule — Tighten Threshold",
+          "name": "Update Velocity Rule \u2014 Tighten Threshold",
           "event": [
             {
               "listen": "test",
@@ -1014,27 +1937,47 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"enabled\": true,\n  \"riskWeight\": 35,\n  \"parameters\": {\n    \"maxTransactions\": \"3\",\n    \"windowMinutes\": \"5\"\n  }\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/rules/11111111-1111-1111-1111-111111111111",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "rules", "11111111-1111-1111-1111-111111111111"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rules",
+                "11111111-1111-1111-1111-111111111111"
+              ]
             },
-            "description": "Tighten the velocity rule: reduce max transactions from 5 → 3 in a 5-minute window and raise risk weight from 30 → 35. Takes effect immediately."
+            "description": "Tighten the velocity rule: reduce max transactions from 5 \u2192 3 in a 5-minute window and raise risk weight from 30 \u2192 35. Takes effect immediately."
           }
         },
         {
-          "name": "Update Amount Threshold Rule — Raise Limit",
+          "name": "Update Amount Threshold Rule \u2014 Raise Limit",
           "event": [
             {
               "listen": "test",
@@ -1055,23 +1998,43 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"enabled\": true,\n  \"riskWeight\": 40,\n  \"parameters\": {\n    \"maxAmount\": \"20000.00\"\n  }\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/rules/22222222-2222-2222-2222-222222222222",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "rules", "22222222-2222-2222-2222-222222222222"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rules",
+                "22222222-2222-2222-2222-222222222222"
+              ]
             },
-            "description": "Raise the amount threshold from R10,000 → R20,000 (e.g. for VIP accounts)."
+            "description": "Raise the amount threshold from R10,000 \u2192 R20,000 (e.g. for VIP accounts)."
           }
         },
         {
@@ -1096,21 +2059,41 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"enabled\": false,\n  \"riskWeight\": 20,\n  \"parameters\": {\n    \"startHour\": \"0\",\n    \"endHour\": \"5\"\n  }\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/rules/33333333-3333-3333-3333-333333333333",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "rules", "33333333-3333-3333-3333-333333333333"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rules",
+                "33333333-3333-3333-3333-333333333333"
+              ]
             },
             "description": "Disable the OFF_HOURS_RULE dynamically. Useful during scheduled maintenance windows."
           }
@@ -1137,28 +2120,48 @@
           "request": {
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{bearerToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearerToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"enabled\": true,\n  \"riskWeight\": 20,\n  \"parameters\": {\n    \"startHour\": \"0\",\n    \"endHour\": \"5\"\n  }\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/rules/33333333-3333-3333-3333-333333333333",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "rules", "33333333-3333-3333-3333-333333333333"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "rules",
+                "33333333-3333-3333-3333-333333333333"
+              ]
             }
           }
         }
       ]
     },
     {
-      "name": "🏥 Health & Monitoring",
+      "name": "\ud83c\udfe5 Health & Monitoring",
       "description": "Spring Boot Actuator health and info endpoints.",
       "item": [
         {
@@ -1200,44 +2203,69 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/actuator/health",
-              "host": ["{{baseUrl}}"],
-              "path": ["actuator", "health"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
             },
             "description": "Spring Boot Actuator health check. Verifies PostgreSQL and Redis connectivity.\n\nExpected response:\n```json\n{ \"status\": \"UP\", \"components\": { \"db\": { \"status\": \"UP\" }, \"redis\": { \"status\": \"UP\" } } }\n```"
           },
           "response": [
             {
-              "name": "200 — All UP",
+              "name": "200 \u2014 All UP",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/actuator/health",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["actuator", "health"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "actuator",
+                    "health"
+                  ]
                 }
               },
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\n  \"status\": \"UP\",\n  \"components\": {\n    \"db\": {\n      \"status\": \"UP\",\n      \"details\": { \"database\": \"PostgreSQL\", \"validationQuery\": \"isValid()\" }\n    },\n    \"diskSpace\": { \"status\": \"UP\" },\n    \"ping\": { \"status\": \"UP\" },\n    \"redis\": { \"status\": \"UP\", \"details\": { \"version\": \"7.0.15\" } }\n  }\n}"
             },
             {
-              "name": "503 — Database DOWN",
+              "name": "503 \u2014 Database DOWN",
               "originalRequest": {
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/actuator/health",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["actuator", "health"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "actuator",
+                    "health"
+                  ]
                 }
               },
               "status": "Service Unavailable",
               "code": 503,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\n  \"status\": \"DOWN\",\n  \"components\": {\n    \"db\": { \"status\": \"DOWN\", \"details\": { \"error\": \"Connection refused\" } }\n  }\n}"
             }
           ]
@@ -1249,8 +2277,12 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/swagger-ui/index.html",
-              "host": ["{{baseUrl}}"],
-              "path": ["docs"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "docs"
+              ]
             },
             "description": "Opens the Swagger UI. Best opened directly in a browser tab."
           }
@@ -1279,8 +2311,12 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api-docs",
-              "host": ["{{baseUrl}}"],
-              "path": ["api-docs"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api-docs"
+              ]
             },
             "description": "Returns the raw OpenAPI 3.x JSON specification. Can be imported into Swagger Editor or used to generate client SDKs."
           }

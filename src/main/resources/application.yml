@@ -7,6 +7,17 @@ spring:
     username: frauduser
     password: fraudpass
     driver-class-name: org.postgresql.Driver
+    # HikariCP connection pool — tuned for concurrent fraud evaluation workloads.
+    # Each transaction evaluation may hit the DB multiple times (rule queries + alert persistence),
+    # so keeping a healthy pool prevents contention under load.
+    hikari:
+      pool-name: FraudRuleEnginePool
+      maximum-pool-size: 20       # max concurrent DB connections; increase for high-traffic deployments
+      minimum-idle: 5             # warm connections to avoid cold-start latency
+      connection-timeout: 30000   # ms: how long to wait for a connection before throwing
+      idle-timeout: 600000        # ms: how long idle connections are kept before being evicted
+      max-lifetime: 1800000       # ms: max lifetime of a connection in the pool (must be < DB timeout)
+      keepalive-time: 60000       # ms: heartbeat to prevent firewall/NAT from closing idle connections
 
   jpa:
     hibernate:
@@ -28,6 +39,15 @@ spring:
       host: localhost
       port: 6379
       timeout: 2000ms
+      # Lettuce connection pool — enables pooling for concurrent rule lookups (velocity, duplicate).
+      # Requires commons-pool2 on the classpath (included in spring-boot-starter-data-redis BOM).
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 16    # max concurrent Redis connections
+          max-idle: 8       # max idle connections kept warm
+          min-idle: 4       # min idle connections to maintain
+          max-wait: 1000ms  # max time to wait for a connection before throwing
 
   cache:
     type: simple
@@ -36,6 +56,24 @@ server:
   port: 8080
   error:
     include-message: always
+  # Tomcat thread pool — sized for a fraud evaluation service that does synchronous DB I/O.
+  # Default is 200 max threads; made explicit here so DevOps can tune per environment.
+  tomcat:
+    threads:
+      max: 200          # maximum number of concurrent request-handling threads
+      min-spare: 10     # threads kept alive when idle (avoids spin-up latency for bursts)
+    accept-count: 100   # queue depth when all threads are busy; requests beyond this are rejected
+    connection-timeout: 20000  # ms: idle connection closed after this period
+
+# Rate limiting — protects the fraud engine against DoS and prevents any single client
+# from monopolising evaluation capacity.  Configuration consumed by RateLimitFilter.
+rate-limit:
+  transactions:
+    enabled: true
+    requests-per-minute: 120    # per client IP; roughly 2 transactions/second — generous for legit use
+  global:
+    enabled: true
+    requests-per-minute: 1000   # total across all clients; prevents server-wide overload
 
 fraud:
   score:

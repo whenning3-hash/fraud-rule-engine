@@ -1,0 +1,40 @@
+meta {
+  name: SLA — List All Rules (< 300ms)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/rules
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+docs {
+  ## Performance SLA — Rule Configuration Read
+
+  GET /api/v1/rules is a read-heavy endpoint called frequently by operations tooling and
+  the monitoring dashboard.  It hits the DB but returns only 8 rows (all seeded rules) so
+  the target SLA is 300ms.
+
+  Under repeated load this endpoint is a good indicator of HikariCP pool contention — if
+  response times spike, the DB pool may need to be widened.
+}
+
+tests {
+  test("Status is 200 OK", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Returns all 8 rules", function() {
+    expect(res.getBody()).to.have.lengthOf(8);
+  });
+
+  test("SLA: response time < 300ms", function() {
+    expect(res.getResponseTime()).to.be.lessThan(300);
+  });
+}

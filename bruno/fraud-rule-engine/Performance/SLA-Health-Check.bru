@@ -1,0 +1,40 @@
+meta {
+  name: SLA — Health Check (< 100ms)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/actuator/health
+  body: none
+  auth: none
+}
+
+docs {
+  ## Performance SLA — Health Check
+
+  Asserts that the /actuator/health endpoint responds within 100ms.
+  This is the fastest endpoint in the system (no DB, no rule evaluation) and serves as a
+  baseline: if this fails the SLA the infrastructure itself is overloaded.
+
+  **Run for load testing:**
+  ```
+  bru run Performance/ --env FRE-Local --iteration-count 100 --delay 50
+  ```
+  This sends 100 sequential requests with a 50ms pause between each.
+  All requests should pass the response-time assertions.
+}
+
+tests {
+  test("Status is 200 OK", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Application status is UP", function() {
+    expect(res.getBody().status).to.equal("UP");
+  });
+
+  test("SLA: response time < 100ms", function() {
+    expect(res.getResponseTime()).to.be.lessThan(100);
+  });
+}

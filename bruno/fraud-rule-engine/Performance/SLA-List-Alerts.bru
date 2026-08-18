@@ -1,0 +1,43 @@
+meta {
+  name: SLA — List Fraud Alerts (< 300ms)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/fraud-alerts
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+docs {
+  ## Performance SLA — Fraud Alert Retrieval
+
+  GET /api/v1/fraud-alerts fetches paginated alert records including their matched-rules
+  JSON.  This hits the DB with a JOIN so is slightly heavier than the rules endpoint.
+  Target SLA is 300ms.
+
+  As the number of alerts in the DB grows over time, this endpoint may slow down.
+  Pagination (page/size query params) keeps individual responses bounded; ensure the DB
+  index on fraud_alerts.created_at is in place.
+}
+
+tests {
+  test("Status is 200 OK", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Response has paginated structure", function() {
+    var json = res.getBody();
+    // The alert list endpoint returns a Page wrapper with content/totalElements.
+    expect(json).to.have.property("content");
+  });
+
+  test("SLA: response time < 300ms", function() {
+    expect(res.getResponseTime()).to.be.lessThan(300);
+  });
+}

@@ -587,6 +587,44 @@ class FraudEvaluationIntegrationTest {
     }
 
     // ══════════════════════════════════════════════════════════════════════════
+    // Country mismatch rule — two-step end-to-end
+    // ══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    void submitTransaction_countryMismatch_twoStepScenario_flaggedAsFraud() throws Exception {
+        // Step 1 — Establish South African baseline for this account.
+        // UNUSUAL_MERCHANT_CATEGORY_RULE fires (15) but 15 < local threshold (20), so not fraudulent.
+        TransactionRequest baseline = new TransactionRequest(
+                "ACC-CM-1", new BigDecimal("800.00"), "ZAR",
+                "Woolworths Cape Town", "RETAIL", "CARD_PRESENT", "ZAF",
+                LocalDateTime.now().withHour(9));
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(baseline)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fraudulent").value(false));
+
+        // Step 2 — Same account, GBR country code within minutes of Step 1.  Impossible travel
+        // detected.  COUNTRY_MISMATCH_RULE (50) fires because ZAF exists in the 24-hour window
+        // for ACC-CM-1.  Combined score = 50 + 15 (unusual category LUXURY) = 65 >= threshold (20).
+        TransactionRequest mismatch = new TransactionRequest(
+                "ACC-CM-1", new BigDecimal("1500.00"), "GBP",
+                "Harrods London", "LUXURY", "ONLINE", "GBR",
+                LocalDateTime.now().withHour(14));
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(mismatch)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fraudulent").value(true))
+                .andExpect(jsonPath("$.riskScore").value(greaterThanOrEqualTo(50)));
+
+        // Only one fraud alert — the baseline transaction was clean.
+        assertThat(alertRepository.count()).isEqualTo(1);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
     // helpers
     // ══════════════════════════════════════════════════════════════════════════
 
@@ -596,7 +634,7 @@ class FraudEvaluationIntegrationTest {
 
     private TransactionRequest cleanTransaction(String accountId) {
         return new TransactionRequest(accountId, new BigDecimal("250.00"), "ZAR",
-                "Pick n Pay", "GROCERY", "CARD_PRESENT", "ZA",
+                "Pick n Pay", "GROCERY", "CARD_PRESENT", "ZAF",
                 LocalDateTime.now().withHour(10));
     }
 

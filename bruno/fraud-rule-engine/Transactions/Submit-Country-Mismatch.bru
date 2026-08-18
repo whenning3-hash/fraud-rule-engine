@@ -36,8 +36,8 @@ docs {
   To trigger this rule you need TWO transactions on the same account:
 
   **Step 1 — Establish baseline (run first):**
-  Submit-Clean-Transaction with `"accountId": "ACC-007"` and `"countryCode": "ZAF"`.
-  This creates prior history showing ACC-007 normally transacts in South Africa.
+  Run `Submit-Country-Baseline-ZAF` (the request immediately before this one, seq=6).
+  It submits an ACC-007 / ZAF transaction and confirms it is clean (fraudulent=false).
 
   **Step 2 — This request:**
   Submit this request for ACC-007 with `"countryCode": "GBR"`.
