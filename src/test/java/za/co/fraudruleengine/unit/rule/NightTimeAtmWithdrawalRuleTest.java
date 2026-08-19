@@ -164,6 +164,24 @@ class NightTimeAtmWithdrawalRuleTest {
     }
 
     // ---------------------------------------------------------------------------
+    // Unknown channel — ChannelType.fromString() returns null, rule must not throw
+    // ---------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Unrecognised channel string — treated as non-cash, rule does not fire")
+    void shouldNotMatchForUnrecognisedChannel() {
+        // A channel value that doesn't map to any ChannelType enum constant
+        // (e.g. a future channel code or a data-quality issue) must not throw;
+        // ChannelType.fromString() returns null which is not contained in the cash-channel set.
+        Transaction tx = buildTransaction(new BigDecimal("2000.00"), "WIRE_TRANSFER", hour(2));
+
+        RuleResult result = rule.evaluate(tx, params);
+
+        assertThat(result.matched()).isFalse();
+        assertThat(result.riskScore()).isZero();
+    }
+
+    // ---------------------------------------------------------------------------
     // Rule identity
     // ---------------------------------------------------------------------------
 

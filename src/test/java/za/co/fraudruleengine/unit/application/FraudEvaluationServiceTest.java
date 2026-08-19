@@ -152,6 +152,46 @@ class FraudEvaluationServiceTest {
         assertThat(result.isFraudulent()).isTrue();
     }
 
+    @Test
+    void initialSave_returnValueIsUsedForSubsequentOperations() throws JsonProcessingException {
+        // Arrange: first save returns a "managed" entity with a specific known UUID
+        // (simulating a JPA proxy or an entity listener that modifies the returned instance).
+        // The alert's transactionId must reference the UUID from the managed entity, not the
+        // pre-save instance — this proves the `entity = save(entity)` assignment is honoured.
+        TransactionRequest request = buildRequest("ACC-005", new BigDecimal("50000.00"),
+                LocalDateTime.now().withHour(1));
+        EvaluationResult highScore = new EvaluationResult(
+                List.of(new RuleResult("AMOUNT_THRESHOLD_RULE", true, 60, "matched")), 60);
+
+        java.util.UUID managedId = java.util.UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+        TransactionEntity managedEntity = new TransactionEntity();
+        managedEntity.setId(managedId);
+        managedEntity.setAccountId("ACC-005");
+        managedEntity.setAmount(new BigDecimal("50000.00"));
+        managedEntity.setCurrency("ZAR");
+        managedEntity.setMerchantName("Test Merchant");
+        managedEntity.setMerchantCategory("RETAIL");
+        managedEntity.setChannel("ONLINE");
+        managedEntity.setCountryCode("ZA");
+        managedEntity.setTransactionTime(request.transactionTime());
+        managedEntity.setRiskScore(0);
+        managedEntity.setFraudulent(false);
+
+        // First save returns the "managed" entity; second save returns whatever it's passed
+        when(transactionRepository.save(any()))
+                .thenReturn(managedEntity)                          // initial save → managed proxy
+                .thenAnswer(inv -> inv.getArgument(0));             // update save → same object
+        when(ruleEngine.evaluate(any())).thenReturn(highScore);
+        when(objectMapper.writeValueAsString(any())).thenReturn("[]");
+
+        service.evaluate(request);
+
+        // The alert must reference the ID from the managed entity, not any other entity
+        ArgumentCaptor<FraudAlertEntity> alertCaptor = ArgumentCaptor.forClass(FraudAlertEntity.class);
+        verify(alertRepository).save(alertCaptor.capture());
+        assertThat(alertCaptor.getValue().getTransactionId()).isEqualTo(managedId);
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private TransactionRequest buildRequest(String accountId, BigDecimal amount, LocalDateTime time) {

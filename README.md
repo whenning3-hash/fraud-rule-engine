@@ -33,9 +33,12 @@ za.co.fraudruleengine
 │   └── dto/        RuleController, AuthController) + request/response DTOs
 ├── service/        Business logic (FraudEvaluationService, AlertQueryService,
 │                   RuleConfigService)
-├── rule/           FraudRule interface, RuleEngine, RuleParameters, RuleResult
+├── rule/           FraudRule interface, RuleEngine, RuleParameters, RuleResult,
+│   │               RuleEvaluationUtils (shared predicates)
 │   └── impl/       8 rule implementations (VelocityRule, AmountThresholdRule, …)
-├── model/          Domain value objects — Transaction (record), AlertStatus (enum)
+├── model/          Domain value objects — Transaction (record), AlertStatus (enum),
+│                   RuleName (enum, single source of truth for all rule DB keys),
+│                   ChannelType (enum: ATM, POS, ONLINE, MOBILE)
 ├── entity/         JPA entities — TransactionEntity, FraudAlertEntity, RuleConfigEntity
 ├── repository/     Spring Data JPA repos + TransactionHistoryAdapter
 ├── redis/          VelocityStorePort (interface) + VelocityStore (Redis impl)
@@ -60,7 +63,9 @@ HTTP request
 - **Rule Configuration** — All rule thresholds are stored in PostgreSQL (`rule_configs` table as JSONB). Thresholds can be changed at runtime via the `PATCH /api/v1/rules/{id}` endpoint without redeployment.
 - **Redis Sliding Window** — The `VelocityRule` uses a Redis sorted set (`ZADD` + `ZCOUNT`) keyed by `accountId` to count transactions within a configurable time window. Expired entries are cleaned up automatically.
 - **Idempotent Duplicate Detection** — `DuplicateTransactionRule` writes a fingerprint (`accountId:amount:merchant`) to Redis with a TTL, preventing the same transaction from being counted twice.
-- **Rate Limiting** — `RateLimitFilter` (servlet filter, `@Order(1)`) enforces two independent sliding-window limits using pure Java concurrency primitives (no external library): a per-IP limit of **120 req/min** on `POST /api/v1/transactions` and a global limit of **1000 req/min** across all endpoints. Exceeded limits return `429 Too Many Requests` with a `Retry-After: 60` header.
+- **Rate Limiting** — `RateLimitFilter` (servlet filter, `@Order(1)`) enforces three independent sliding-window limits using pure Java concurrency primitives (no external library): a per-IP limit of **120 req/min** on `POST /api/v1/transactions`, a strict **10 req/min** brute-force guard on `POST /api/v1/auth/token`, and a global limit of **1000 req/min** across all endpoints. Exceeded limits return `429 Too Many Requests` with a `Retry-After` header derived from the window size constant.
+- **Shared Rule Utilities** — `RuleEvaluationUtils` provides stateless helper predicates (e.g. `isOffHours()`) used by multiple rules. This follows the DRY principle — the off-hours time-window check is defined once and reused by both `OffHoursRule` and `NightTimeAtmWithdrawalRule` rather than duplicated.
+- **Type-Safe Enums** — `RuleName` is the single source of truth for all 8 rule identifier strings (the join key between rule implementations and the `rule_configs` database table). Each rule class delegates its `RULE_NAME` constant to `RuleName.X.name()` so a DB key typo is a compile error, not a silent skip. `ChannelType` (ATM, POS, ONLINE, MOBILE) replaces raw string comparisons and `toUpperCase()` workarounds in channel-based rules.
 - **Connection Pool Tuning** — HikariCP is configured with `maximum-pool-size=20`, `minimum-idle=5`, and `keepalive-time=60s`. Lettuce (Redis client) connection pool is enabled with `max-active=16`. Tomcat thread pool is set to `max=200` with `accept-count=100`. All settings are externalised in `application.yml` for environment-specific tuning.
 
 ---
@@ -254,9 +259,9 @@ mvn test
 mvn verify
 ```
 
-**132 unit tests**, **43 integration tests** — 175 total.
+**164 unit tests**, **43 integration tests** — 207 total.
 
-Unit tests (`src/test/java/.../unit/`) — pure JUnit 5 + Mockito, no Spring context, sub-second execution. Covers all 8 fraud rules, the rate-limit filter, the JWT provider, repository adapters, and the `LogMaskUtil` POPIA masking utility. Each rule has positive, negative, and boundary-condition tests.
+Unit tests (`src/test/java/.../unit/`) — pure JUnit 5 + Mockito, no Spring context, sub-second execution. Covers all 8 fraud rules, the rate-limit filter, the JWT provider, repository adapters, the `LogMaskUtil` POPIA masking utility, the `RuleEvaluationUtils` shared utility, and both new enums (`RuleName`, `ChannelType`). Each rule has positive, negative, boundary-condition, and rule-name identity tests. `RuleNameTest` explicitly asserts that every enum constant's `.name()` matches the corresponding rule class constant — a compile-level guard against DB key drift.
 
 Integration tests (`*IntegrationTest`) use Testcontainers to start real PostgreSQL and Redis containers automatically. Docker must be running. Includes `LoadPerformanceIntegrationTest` which validates:
 - 20 concurrent requests complete within a 10-second wall-clock budget (virtual threads)

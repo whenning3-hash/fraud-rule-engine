@@ -66,6 +66,17 @@ class OffHoursRuleTest {
         assertThat(result.matched()).isTrue();
     }
 
+    @Test
+    void shouldReturnCorrectRuleName() {
+        assertThat(rule.getRuleName()).isEqualTo(OffHoursRule.RULE_NAME);
+    }
+
+    @Test
+    void ruleNameShouldMatchExpectedString() {
+        // Explicitly verify the string value so DB join key cannot drift without a test failure
+        assertThat(OffHoursRule.RULE_NAME).isEqualTo("OFF_HOURS_RULE");
+    }
+
     private Transaction buildTransactionAtHour(int hour) {
         return new Transaction(UUID.randomUUID(), "ACC-001", new BigDecimal("500.00"), "ZAR",
                 "Test Merchant", "RETAIL", "POS", "ZA",
