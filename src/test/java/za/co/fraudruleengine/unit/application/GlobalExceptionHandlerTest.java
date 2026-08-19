@@ -81,6 +81,20 @@ class GlobalExceptionHandlerTest {
         assertThat(result.getTitle()).isEqualTo("Unsupported Media Type");
     }
 
+    // ── IllegalStateException → 409 ─────────────────────────────────────────
+
+    @Test
+    @DisplayName("IllegalStateException maps to 409 Conflict — illegal alert state transition")
+    void illegalStateException_returns409() {
+        IllegalStateException ex = new IllegalStateException(
+                "Invalid alert status transition: CLOSED → OPEN. Allowed transitions from CLOSED: none (terminal state)");
+        MockHttpServletRequest request = new MockHttpServletRequest("PATCH", "/api/v1/alerts/some-id/status");
+        ProblemDetail result = handler.handleIllegalState(ex, request);
+        assertThat(result.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(result.getTitle()).isEqualTo("Conflict");
+        assertThat(result.getDetail()).contains("CLOSED").contains("OPEN");
+    }
+
     // ── Generic Exception → 500 ──────────────────────────────────────────────
 
     @Test

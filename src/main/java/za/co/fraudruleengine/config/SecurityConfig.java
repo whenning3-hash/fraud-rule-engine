@@ -36,9 +36,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  *
  * <p>Swagger UI ({@code /swagger-ui/**}, {@code /api-docs/**}) is disabled in the base
  * {@code application.yml} via {@code springdoc.api-docs.enabled=false}. It is re-enabled in
- * {@code application-local.yml} for interactive API access at
- * {@code http://localhost:8080/swagger-ui/index.html}. Swagger routes are gated behind
- * {@code .authenticated()} so a valid Bearer token is required to access them.
+ * {@code application-local.yml}. Swagger's static resources (HTML, JS, CSS) and the OpenAPI
+ * JSON descriptor are permit-listed so the UI can load in the browser; API calls made
+ * <em>through</em> Swagger UI carry the Bearer token entered via the <strong>Authorize</strong>
+ * button and are therefore still protected by the JWT filter.
  *
  * <p>Security can be disabled entirely via {@code fraud.security.enabled=false}. This flag
  * exists solely for integration tests, which override it using {@code @TestPropertySource}.
@@ -91,9 +92,12 @@ public class SecurityConfig {
                     // Public endpoints — no token required
                     .requestMatchers("/api/v1/auth/**").permitAll()
                     .requestMatchers("/actuator/health").permitAll()
-                    // Swagger is disabled in production (springdoc.api-docs.enabled=false).
-                    // Belt-and-suspenders: if somehow reached, require authentication.
-                    .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").authenticated()
+                    // Swagger UI static resources and the OpenAPI descriptor are permit-listed so
+                    // the browser can load the documentation page.  API calls made through the UI
+                    // carry a Bearer token (entered via the Authorize button) and are protected by
+                    // the JWT filter below.  springdoc.api-docs.enabled=false in the base config
+                    // ensures these paths are never reachable in environments where Swagger is off.
+                    .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
                     // All other endpoints require a valid JWT
                     .anyRequest().authenticated()
             )

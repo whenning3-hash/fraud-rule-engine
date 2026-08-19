@@ -263,7 +263,7 @@ mvn test
 mvn verify
 ```
 
-**175 unit tests**, **58 integration tests** — 233 total, 0 failures.
+**176 unit tests**, **59 integration tests** — 235 total, 0 failures.
 
 Unit tests (`src/test/java/.../unit/`) — pure JUnit 5 + Mockito, no Spring context, sub-second execution. Covers all 8 fraud rules, the rate-limit filter, the JWT provider, repository adapters, the `LogMaskUtil` POPIA masking utility, the `RuleEvaluationUtils` shared utility, both enums (`RuleName`, `ChannelType`), the `CorrelationIdFilter` (6 tests covering header propagation, UUID generation, and MDC cleanup), and the `GlobalExceptionHandler` (each HTTP status code variant). Each rule has positive, negative, boundary-condition, and rule-name identity tests. `RuleNameTest` explicitly asserts that every enum constant's `.name()` matches the corresponding rule class constant — a compile-level guard against DB key drift.
 

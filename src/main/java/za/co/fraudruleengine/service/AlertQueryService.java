@@ -74,23 +74,46 @@ public class AlertQueryService {
     }
 
     /**
-     * Transitions a fraud alert to a new lifecycle status.
+     * Transitions a fraud alert to a new lifecycle status, enforcing the valid state machine.
      *
      * <p>This method overrides the class-level read-only transaction with a writable one.
-     * The previous status is captured before the update for audit logging purposes, giving
-     * operations teams a clear trail of state transitions.
+     * The previous status is captured before the update for audit logging, giving operations
+     * teams a clear trail of every state change.
+     *
+     * <p>Valid transitions:
+     * <ul>
+     *   <li>{@code OPEN → REVIEWED} — analyst picks up the alert</li>
+     *   <li>{@code OPEN → CLOSED} — direct close (confirmed false positive during triage)</li>
+     *   <li>{@code REVIEWED → CLOSED} — investigation complete</li>
+     * </ul>
+     *
+     * <p>Any other transition (e.g. {@code CLOSED → OPEN}) is rejected with
+     * {@link IllegalStateException}, which maps to HTTP 409 Conflict.
      *
      * @param id        the UUID of the alert to update
      * @param newStatus the target status to transition the alert to
      * @return the updated and persisted {@link FraudAlertEntity}; never {@code null}
-     * @throws IllegalArgumentException if no alert exists with the given ID
+     * @throws IllegalArgumentException if no alert exists with the given ID (→ 404)
+     * @throws IllegalStateException    if the transition is not permitted by the state machine (→ 409)
      */
     @Transactional
     public FraudAlertEntity updateStatus(UUID id, AlertStatus newStatus) {
         FraudAlertEntity alert = findById(id);
-        AlertStatus previous = alert.getStatus();
+        AlertStatus current = alert.getStatus();
+
+        // Enforce state machine — only forward transitions are permitted.
+        if (!current.canTransitionTo(newStatus)) {
+            throw new IllegalStateException(
+                    String.format("Invalid alert status transition: %s → %s. "
+                            + "Allowed transitions from %s: %s",
+                            current, newStatus, current,
+                            current == AlertStatus.CLOSED
+                                    ? "none (terminal state)"
+                                    : current.name().equals("OPEN") ? "REVIEWED, CLOSED" : "CLOSED"));
+        }
+
         alert.setStatus(newStatus);
-        log.info("Alert {} status transition: {} → {}", id, previous, newStatus);
+        log.info("Alert {} status transition: {} → {}", id, current, newStatus);
         return alertRepository.save(alert);
     }
 }

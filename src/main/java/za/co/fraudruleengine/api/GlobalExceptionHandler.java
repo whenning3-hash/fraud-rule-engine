@@ -201,6 +201,30 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Maps {@link IllegalStateException} to HTTP 409 Conflict.
+     *
+     * <p>Thrown by the service layer when a business-logic state invariant is violated — for
+     * example, attempting an illegal alert status transition (e.g. {@code CLOSED → OPEN}).
+     * HTTP 409 is the semantically correct response: the request is syntactically valid but
+     * conflicts with the current state of the resource.
+     *
+     * <p>Logged at WARN because this represents a client calling the API in an incorrect order
+     * rather than an internal server error. The detail message from the exception (which describes
+     * the invalid transition) is included so that callers can diagnose and correct the sequence.
+     *
+     * @param ex      the exception describing the illegal state transition
+     * @param request the current HTTP request — used to include the URI in the warning log
+     * @return a {@link ProblemDetail} with status 409 and the transition error as detail
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ProblemDetail handleIllegalState(IllegalStateException ex, HttpServletRequest request) {
+        log.warn("Illegal state transition on {}: {}", request.getRequestURI(), ex.getMessage());
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        detail.setTitle("Conflict");
+        return detail;
+    }
+
+    /**
      * Catch-all handler for any unhandled exception, returning HTTP 500 Internal Server Error.
      *
      * <p>The detail message is intentionally vague to avoid leaking internal implementation

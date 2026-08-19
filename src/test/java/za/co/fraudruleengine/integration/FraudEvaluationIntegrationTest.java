@@ -895,6 +895,41 @@ class FraudEvaluationIntegrationTest {
     }
 
     @Test
+    void updateAlertStatus_closedToOpen_returns409Conflict() throws Exception {
+        // Create a fraudulent transaction so an alert exists in OPEN state.
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(new TransactionRequest(
+                                "ACC-STATE-MACHINE", new BigDecimal("50000.00"), "ZAR",
+                                "Test Merchant", "RETAIL", "ONLINE", "ZAF",
+                                LocalDateTime.now().withHour(3)))))
+                .andExpect(status().isCreated());
+
+        String alertId = getFirstAlertId();
+        if (alertId.isEmpty()) return;
+
+        // Advance OPEN → REVIEWED → CLOSED (valid chain)
+        mockMvc.perform(patch("/api/v1/alerts/" + alertId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"REVIEWED\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(patch("/api/v1/alerts/" + alertId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"CLOSED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"));
+
+        // Attempting CLOSED → OPEN must be rejected with 409 Conflict — terminal state.
+        mockMvc.perform(patch("/api/v1/alerts/" + alertId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"OPEN\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.title").value("Conflict"))
+                .andExpect(jsonPath("$.detail").value(containsString("CLOSED")));
+    }
+
+    @Test
     void nightTimePosHighValue_flaggedAsFraud_posIsInCashChannels() throws Exception {
         // POS is in CASH_CHANNELS (EnumSet.of(ATM, POS)).
         // A POS withdrawal at 03:00 with R3 500 meets all three NIGHT_TIME_ATM_RULE conditions.
