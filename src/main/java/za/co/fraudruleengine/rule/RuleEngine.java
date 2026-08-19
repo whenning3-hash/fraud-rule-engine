@@ -85,12 +85,12 @@ public class RuleEngine {
 
             if (result.matched()) {
                 totalScore += result.riskScore();
-                log.info("Rule {} MATCHED for account {} — score contribution: {}",
+                log.debug("Rule {} MATCHED for account {} — score contribution: {}",
                         rule.getRuleName(), LogMaskUtil.maskAccount(transaction.accountId()), result.riskScore());
             }
         }
 
-        log.info("Evaluation complete for transaction {} — total score: {}", transaction.id(), totalScore);
+        log.debug("Evaluation complete for transaction {} — total score: {}", transaction.id(), totalScore);
         return new EvaluationResult(results, totalScore);
     }
 }

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -46,7 +47,8 @@ class GlobalExceptionHandlerTest {
         // Constructor: NoResourceFoundException(HttpMethod, String resourcePath, String description)
         NoResourceFoundException ex = new NoResourceFoundException(
                 org.springframework.http.HttpMethod.GET, "/api/v1/nonexistent", "No handler found");
-        ProblemDetail result = handler.handleNoResourceFound(ex);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/nonexistent");
+        ProblemDetail result = handler.handleNoResourceFound(ex, request);
         assertThat(result.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
         assertThat(result.getTitle()).isEqualTo("Not Found");
         assertThat(result.getDetail()).isNotBlank();
@@ -59,7 +61,8 @@ class GlobalExceptionHandlerTest {
     void methodNotSupportedException_returns405() {
         HttpRequestMethodNotSupportedException ex =
                 new HttpRequestMethodNotSupportedException("GET");
-        ProblemDetail result = handler.handleMethodNotSupported(ex);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/transactions");
+        ProblemDetail result = handler.handleMethodNotSupported(ex, request);
         assertThat(result.getStatus()).isEqualTo(HttpStatus.METHOD_NOT_ALLOWED.value());
         assertThat(result.getTitle()).isEqualTo("Method Not Allowed");
         assertThat(result.getDetail()).contains("GET");
@@ -72,7 +75,8 @@ class GlobalExceptionHandlerTest {
     void mediaTypeNotSupportedException_returns415() {
         HttpMediaTypeNotSupportedException ex =
                 new HttpMediaTypeNotSupportedException("text/plain is not supported");
-        ProblemDetail result = handler.handleMediaTypeNotSupported(ex);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/transactions");
+        ProblemDetail result = handler.handleMediaTypeNotSupported(ex, request);
         assertThat(result.getStatus()).isEqualTo(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value());
         assertThat(result.getTitle()).isEqualTo("Unsupported Media Type");
     }

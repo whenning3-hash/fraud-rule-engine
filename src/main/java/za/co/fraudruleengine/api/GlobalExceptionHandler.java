@@ -1,5 +1,6 @@
 package za.co.fraudruleengine.api;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -30,7 +31,10 @@ import java.util.stream.Collectors;
  *
  * <p>Log levels are deliberately varied by severity:
  * <ul>
- *   <li>Business rule / 404 / 400 errors: {@code WARN} or {@code DEBUG} — expected in normal operation</li>
+ *   <li>4xx client errors (400/404/405/415): {@code WARN} — visible at production log level so that
+ *       integration teams and support engineers can diagnose bad requests without needing to replay
+ *       traffic. The request URI is included in every WARN line to give enough context to locate the
+ *       call in the upstream system's trace.</li>
  *   <li>Unexpected 500 errors: {@code ERROR} with full stack trace — requires investigation</li>
  * </ul>
  */
@@ -102,15 +106,19 @@ public class GlobalExceptionHandler {
      * message so that clients receive a complete picture of all validation failures in one
      * response, rather than needing to fix and resubmit iteratively.
      *
-     * @param ex the validation exception containing one or more field errors
+     * <p>Logged at WARN because constraint failures from a caller indicate a contract mismatch
+     * that downstream engineers must be able to trace without enabling DEBUG in production.
+     *
+     * @param ex      the validation exception containing one or more field errors
+     * @param request the current HTTP request — used to include the URI in the warning log
      * @return a {@link ProblemDetail} with status 400 and all field errors listed in the detail
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
+    public ProblemDetail handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
         String errors = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining(", "));
-        log.debug("Validation failed: {}", errors);
+        log.warn("Validation failed on {}: {}", request.getRequestURI(), errors);
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, errors);
         detail.setTitle("Validation Failed");
         return detail;
@@ -123,12 +131,16 @@ public class GlobalExceptionHandler {
      * matching route or static resource for the request URI. Without an explicit handler here,
      * the catch-all {@code Exception} handler would intercept it and incorrectly return 500.
      *
-     * @param ex the exception thrown when no handler or resource is found for the request path
+     * <p>Logged at WARN so that callers hitting non-existent routes are visible in production logs
+     * without requiring DEBUG to be enabled.
+     *
+     * @param ex      the exception thrown when no handler or resource is found for the request path
+     * @param request the current HTTP request — used to include the full URI in the warning log
      * @return a {@link ProblemDetail} with status 404
      */
     @ExceptionHandler(NoResourceFoundException.class)
-    public ProblemDetail handleNoResourceFound(NoResourceFoundException ex) {
-        log.debug("No handler found for request: {}", ex.getMessage());
+    public ProblemDetail handleNoResourceFound(NoResourceFoundException ex, HttpServletRequest request) {
+        log.warn("Route not found: {} {}", request.getMethod(), request.getRequestURI());
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(
                 HttpStatus.NOT_FOUND, "The requested endpoint does not exist");
         detail.setTitle("Not Found");
@@ -142,12 +154,19 @@ public class GlobalExceptionHandler {
      * a {@code GET} request against a {@code POST}-only endpoint. Without an explicit handler,
      * the catch-all would return 500.
      *
-     * @param ex the exception carrying the unsupported method and the list of allowed methods
+     * <p>Logged at WARN with the URI and the allowed methods so that an engineer reviewing logs
+     * can immediately see which endpoint was called, with which verb, and what verbs are valid —
+     * enough to diagnose a mis-wired integration without needing to read source code.
+     *
+     * @param ex      the exception carrying the unsupported method and the list of allowed methods
+     * @param request the current HTTP request — used to include the URI in the warning log
      * @return a {@link ProblemDetail} with status 405 and the offending method name
      */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    public ProblemDetail handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
-        log.debug("HTTP method not supported: {}", ex.getMessage());
+    public ProblemDetail handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+        log.warn("HTTP {} not supported on {} — allowed: {}",
+                ex.getMethod(), request.getRequestURI(), ex.getSupportedHttpMethods());
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(
                 HttpStatus.METHOD_NOT_ALLOWED,
                 "HTTP method '" + ex.getMethod() + "' is not supported for this endpoint");
@@ -162,13 +181,18 @@ public class GlobalExceptionHandler {
      * for example, {@code text/plain} instead of {@code application/json}. Without an explicit
      * handler, the catch-all would return 500.
      *
-     * @param ex the exception carrying the unsupported content type
+     * <p>Logged at WARN with the content type and the URI so that an integration team can
+     * immediately identify the misconfigured caller and the endpoint it was targeting.
+     *
+     * @param ex      the exception carrying the unsupported content type
+     * @param request the current HTTP request — used to include the URI in the warning log
      * @return a {@link ProblemDetail} with status 415 and the offending content type
      */
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
-    public ProblemDetail handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
-        log.debug("Media type not supported: {}", ex.getMessage());
+    public ProblemDetail handleMediaTypeNotSupported(
+            HttpMediaTypeNotSupportedException ex, HttpServletRequest request) {
         String contentType = ex.getContentType() != null ? ex.getContentType().toString() : "unknown";
+        log.warn("Unsupported Content-Type '{}' on {} — use application/json", contentType, request.getRequestURI());
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(
                 HttpStatus.UNSUPPORTED_MEDIA_TYPE,
                 "Content-Type '" + contentType + "' is not supported. Use application/json");
