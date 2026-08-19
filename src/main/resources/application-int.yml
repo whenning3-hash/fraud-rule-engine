@@ -1,0 +1,43 @@
+################################################################################
+# Integration (INT) Environment Profile
+#
+# Activated by: SPRING_PROFILES_ACTIVE=int
+# Purpose: Stable integration environment used by QA automation and cross-team
+#          integration testing. Services are deployed against shared INT databases
+#          and message brokers.
+#
+# Key differences from production:
+#   - Swagger UI enabled — QA automation teams and integration partners need API docs
+#   - INFO logging — enough detail to diagnose failing integration test scenarios
+#
+# All secrets MUST be injected via the deployment pipeline.
+################################################################################
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://fraud-rule-engine-db-int:5432/frauddb}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST:fraud-rule-engine-redis-int}
+      port: ${REDIS_PORT:6379}
+
+fraud:
+  score:
+    threshold: 60
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+springdoc:
+  api-docs:
+    enabled: true  # Swagger accessible in INT — required by integration and QA teams.
+  swagger-ui:
+    enabled: true
+
+logging:
+  level:
+    root: INFO
+    za.co.fraudruleengine: INFO

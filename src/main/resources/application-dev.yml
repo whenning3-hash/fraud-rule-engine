@@ -1,0 +1,60 @@
+################################################################################
+# Development (DEV) Environment Profile
+#
+# Activated by: SPRING_PROFILES_ACTIVE=dev
+# Purpose: Shared DEV environment used by developers for day-to-day integration
+#          testing. Connects to the DEV database and Redis instances.
+#
+# Key differences from production:
+#   - fraud.score.threshold lowered to 50 — individual rules observable in test runs
+#   - Swagger UI enabled — developers and integration team can explore the API
+#   - Error messages exposed — full exception details aid local debugging
+#   - Relaxed rate limits — developers run automated test suites that batch requests
+#   - DEBUG logging for service code — full tracing of evaluation decisions
+#
+# All secrets (DB_USERNAME, DB_PASSWORD, JWT_SECRET) MUST be injected via the
+# deployment pipeline (Vault / Kubernetes Secret). No defaults are provided for
+# credentials — the service will fail fast if they are absent.
+################################################################################
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://fraud-rule-engine-db-dev:5432/frauddb}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    show-sql: false
+  data:
+    redis:
+      host: ${REDIS_HOST:fraud-rule-engine-redis-dev}
+      port: ${REDIS_PORT:6379}
+
+fraud:
+  score:
+    threshold: 50  # Lower than production; individual rules trigger alerts — useful for verifying rule behaviour.
+  security:
+    jwt:
+      # MUST be injected via Vault / Kubernetes Secret — no default provided.
+      secret: ${JWT_SECRET}
+      expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+springdoc:
+  api-docs:
+    enabled: true  # Swagger accessible in DEV for developers and integration teams.
+  swagger-ui:
+    enabled: true
+
+rate-limit:
+  transactions:
+    requests-per-minute: 200  # Relaxed — developers run automated test batches.
+  auth:
+    requests-per-minute: 30   # Relaxed — allow test scripts to obtain tokens freely.
+
+server:
+  error:
+    include-message: always  # Expose full error messages in DEV for debugging without log access.
+
+logging:
+  level:
+    root: INFO
+    za.co.fraudruleengine: DEBUG  # Full rule evaluation trace in DEV.
