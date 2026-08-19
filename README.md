@@ -66,7 +66,8 @@ HTTP request
 - **Rate Limiting** — `RateLimitFilter` (servlet filter, `@Order(1)`) enforces three independent sliding-window limits using pure Java concurrency primitives (no external library): a per-IP limit of **120 req/min** on `POST /api/v1/transactions`, a strict **10 req/min** brute-force guard on `POST /api/v1/auth/token`, and a global limit of **1000 req/min** across all endpoints. Exceeded limits return `429 Too Many Requests` with a `Retry-After` header derived from the window size constant.
 - **Shared Rule Utilities** — `RuleEvaluationUtils` provides stateless helper predicates (e.g. `isOffHours()`) used by multiple rules. This follows the DRY principle — the off-hours time-window check is defined once and reused by both `OffHoursRule` and `NightTimeAtmWithdrawalRule` rather than duplicated.
 - **Type-Safe Enums** — `RuleName` is the single source of truth for all 8 rule identifier strings (the join key between rule implementations and the `rule_configs` database table). Each rule class delegates its `RULE_NAME` constant to `RuleName.X.name()` so a DB key typo is a compile error, not a silent skip. `ChannelType` (ATM, POS, ONLINE, MOBILE) replaces raw string comparisons and `toUpperCase()` workarounds in channel-based rules.
-- **Connection Pool Tuning** — HikariCP is configured with `maximum-pool-size=20`, `minimum-idle=5`, and `keepalive-time=60s`. Lettuce (Redis client) connection pool is enabled with `max-active=16`. Tomcat thread pool is set to `max=200` with `accept-count=100`. All settings are externalised in `application.yml` for environment-specific tuning.
+- **Virtual Threads (Project Loom)** — `spring.threads.virtual.enabled=true` enables Java 25 virtual threads for all Tomcat request handling, `@Async` tasks, and `@Scheduled` jobs. Virtual threads are extremely lightweight (~few hundred bytes vs ~1 MB per platform thread stack) and created on demand — no fixed thread pool needed. `RateLimitFilter` uses `ReentrantLock` (not `synchronized`) to avoid virtual-thread pinning: `synchronized` blocks pin a virtual thread to its carrier thread, defeating Loom's scalability benefit, whereas `ReentrantLock` suspends the virtual thread and releases the carrier for other work.
+- **Connection Pool Tuning** — With virtual threads, the HikariCP connection pool is the primary concurrency bottleneck. Pool is sized at `maximum-pool-size=50` to support high virtual-thread concurrency while staying within PostgreSQL's default `max_connections`. Lettuce (Redis client) connection pool is enabled with `max-active=16`. All settings are externalised in `application.yml` for environment-specific tuning.
 
 ---
 
@@ -263,7 +264,7 @@ mvn test
 mvn verify
 ```
 
-**176 unit tests**, **59 integration tests** — 235 total, 0 failures.
+**178 unit tests**, **59 integration tests** — 237 total, 0 failures.
 
 Unit tests (`src/test/java/.../unit/`) — pure JUnit 5 + Mockito, no Spring context, sub-second execution. Covers all 8 fraud rules, the rate-limit filter, the JWT provider, repository adapters, the `LogMaskUtil` POPIA masking utility, the `RuleEvaluationUtils` shared utility, both enums (`RuleName`, `ChannelType`), the `CorrelationIdFilter` (6 tests covering header propagation, UUID generation, and MDC cleanup), and the `GlobalExceptionHandler` (each HTTP status code variant). Each rule has positive, negative, boundary-condition, and rule-name identity tests. `RuleNameTest` explicitly asserts that every enum constant's `.name()` matches the corresponding rule class constant — a compile-level guard against DB key drift.
 

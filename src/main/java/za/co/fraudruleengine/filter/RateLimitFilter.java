@@ -15,6 +15,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Servlet filter that applies sliding-window rate limiting to protect the fraud evaluation
@@ -37,8 +38,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  * protecting against sustained high-rate clients; a sliding-window or token-bucket algorithm
  * may be swapped in here without changing the interface.
  *
- * <p><b>Thread safety</b>: all state is held in {@link ConcurrentHashMap}/{@link AtomicInteger};
- * no synchronised blocks are needed.
+ * <p><b>Thread safety</b>: per-IP state is held in {@link RateLimitSlot} instances each guarded
+ * by a {@link ReentrantLock} rather than {@code synchronized} — {@code synchronized} blocks pin
+ * virtual threads to their carrier thread, which defeats Project Loom's scalability benefit.
+ * {@link ReentrantLock} suspends the virtual thread instead, freeing the carrier for other work.
+ * Global state uses {@link AtomicInteger} which is always lock-free.
  */
 @Slf4j
 @Component
@@ -105,12 +109,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     /**
      * Per-IP counters for the transaction endpoint.
-     * Key: client IP address.  Value: {@code long[2]}{windowStart, requestCount}.
+     * Key: client IP address.  Value: {@link RateLimitSlot} (ReentrantLock-guarded window + count).
      */
-    private final ConcurrentHashMap<String, long[]> perIpCounters = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, RateLimitSlot> perIpCounters = new ConcurrentHashMap<>();
 
     /** Per-IP counters for the authentication endpoint (brute-force protection). */
-    private final ConcurrentHashMap<String, long[]> perIpAuthCounters = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, RateLimitSlot> perIpAuthCounters = new ConcurrentHashMap<>();
 
     /** Global counter shared across all clients. */
     private volatile long globalWindowStart = System.currentTimeMillis();
@@ -216,27 +220,51 @@ public class RateLimitFilter extends OncePerRequestFilter {
     /**
      * Core fixed-window counter logic shared by the per-IP transaction and auth limits.
      *
-     * <p>Each entry in {@code counters} is a {@code long[2]} where {@code [0]} holds the window
-     * start timestamp and {@code [1]} holds the request count. When the current time has advanced
-     * past the window boundary the counter is reset to {@code 1} and the call is allowed through.
+     * <p>Each entry in {@code counters} is a {@link RateLimitSlot} holding the window start
+     * timestamp and a request count, guarded by a {@link ReentrantLock}.  Using
+     * {@code ReentrantLock} rather than {@code synchronized} is critical for virtual-thread
+     * compatibility: {@code synchronized} pins the virtual thread to its carrier (blocking the
+     * carrier for other virtual threads), whereas {@code ReentrantLock} merely suspends the
+     * virtual thread and returns the carrier to the pool while waiting.
      *
      * @param counters the counter map keyed by client IP
      * @param clientIp the resolved client IP address used as the map key
      * @param limit    the maximum number of requests allowed within the window
      * @return {@code true} when the request count exceeds {@code limit}; {@code false} otherwise
      */
-    private boolean isLimitExceeded(ConcurrentHashMap<String, long[]> counters,
+    private boolean isLimitExceeded(ConcurrentHashMap<String, RateLimitSlot> counters,
                                     String clientIp, int limit) {
         long now = System.currentTimeMillis();
-        long[] slot = counters.computeIfAbsent(clientIp, k -> new long[]{now, 0});
-        synchronized (slot) {
-            if (now - slot[0] >= WINDOW_MS) {
-                slot[0] = now;
-                slot[1] = 1;
+        RateLimitSlot slot = counters.computeIfAbsent(clientIp, k -> new RateLimitSlot(now));
+        slot.lock.lock();
+        try {
+            if (now - slot.windowStart >= WINDOW_MS) {
+                slot.windowStart = now;
+                slot.count = 1;
                 return false;
             }
-            slot[1]++;
-            return slot[1] > limit;
+            slot.count++;
+            return slot.count > limit;
+        } finally {
+            slot.lock.unlock();
+        }
+    }
+
+    /**
+     * Per-IP rate-limit slot holding window state, guarded by a {@link ReentrantLock}.
+     *
+     * <p>Using {@link ReentrantLock} instead of {@code synchronized} ensures virtual-thread
+     * compatibility — a virtual thread waiting to acquire this lock is suspended (not pinned),
+     * so its carrier thread is released to schedule other virtual threads in the meantime.
+     */
+    private static final class RateLimitSlot {
+        final ReentrantLock lock = new ReentrantLock();
+        long windowStart;
+        long count;
+
+        RateLimitSlot(long windowStart) {
+            this.windowStart = windowStart;
+            this.count = 0;
         }
     }
 

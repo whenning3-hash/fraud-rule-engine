@@ -2,12 +2,19 @@ package za.co.fraudruleengine.unit.filter;
 
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.util.ReflectionTestUtils;
 import za.co.fraudruleengine.filter.RateLimitFilter;
+
+import java.lang.reflect.Field;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -320,6 +327,84 @@ class RateLimitFilterTest {
         assertThat(status)
                 .as("Request beyond global limit must return 429")
                 .isEqualTo(429);
+    }
+
+    // ── virtual-thread safety ──────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("RateLimitSlot uses ReentrantLock — no synchronized block that would pin virtual threads")
+    void rateLimitSlot_usesReentrantLock_notSynchronized() throws Exception {
+        // Structural guard: verifies the per-IP counter map holds RateLimitSlot instances
+        // whose lock field is a ReentrantLock — not a synchronized primitive.
+        // If someone changes this back to long[] + synchronized, virtual threads will pin
+        // to carrier threads under load and this test will catch the regression.
+        ReflectionTestUtils.setField(filter, "perIpEnabled", true);
+        ReflectionTestUtils.setField(filter, "perIpLimit", 100);
+
+        // Trigger slot creation by sending one request
+        invoke(txPost("192.168.99.1"));
+
+        @SuppressWarnings("unchecked")
+        ConcurrentHashMap<String, ?> counters =
+                (ConcurrentHashMap<String, ?>) ReflectionTestUtils.getField(filter, "perIpCounters");
+        assertThat(counters).isNotNull().isNotEmpty();
+
+        Object slot = counters.get("192.168.99.1");
+        assertThat(slot).as("slot must not be null after first request").isNotNull();
+
+        // The slot must expose a ReentrantLock field named 'lock'
+        Field lockField = slot.getClass().getDeclaredField("lock");
+        lockField.setAccessible(true);
+        Object lock = lockField.get(slot);
+        assertThat(lock)
+                .as("RateLimitSlot.lock must be a ReentrantLock — synchronized blocks pin virtual threads")
+                .isInstanceOf(ReentrantLock.class);
+    }
+
+    @Test
+    @DisplayName("Concurrent virtual threads — exactly limit requests allowed, rest blocked (thread-safe counter)")
+    void concurrentRequests_exactlyLimitAllowed_reentrantLockThreadSafe() throws Exception {
+        // Verifies that the ReentrantLock-based slot handles concurrent access correctly.
+        // With 50 virtual threads all hitting the same IP simultaneously against a limit of 10,
+        // exactly 10 must be allowed and 40 must receive 429. Any number other than 10 would
+        // indicate a race condition in the counter.
+        final int limit = 10;
+        final int totalRequests = 50;
+        ReflectionTestUtils.setField(filter, "perIpLimit", limit);
+        ReflectionTestUtils.setField(filter, "globalLimit", 10000); // don't interfere
+
+        AtomicInteger allowed = new AtomicInteger(0);
+        AtomicInteger blocked = new AtomicInteger(0);
+        CountDownLatch startLatch = new CountDownLatch(1); // all threads start simultaneously
+        CountDownLatch doneLatch = new CountDownLatch(totalRequests);
+
+        for (int i = 0; i < totalRequests; i++) {
+            Thread.ofVirtual().start(() -> {
+                try {
+                    startLatch.await(); // hold until all threads are ready
+                    int status = invoke(txPost(LOCAL_IP));
+                    if (status == 429) {
+                        blocked.incrementAndGet();
+                    } else {
+                        allowed.incrementAndGet();
+                    }
+                } catch (Exception e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        startLatch.countDown(); // release all 50 threads simultaneously
+        doneLatch.await();      // wait for all to complete
+
+        assertThat(allowed.get())
+                .as("Exactly %d requests should be allowed (limit=%d, total=%d)", limit, limit, totalRequests)
+                .isEqualTo(limit);
+        assertThat(blocked.get())
+                .as("Exactly %d requests should be blocked", totalRequests - limit)
+                .isEqualTo(totalRequests - limit);
     }
 
     // ── disabled limits ────────────────────────────────────────────────────────

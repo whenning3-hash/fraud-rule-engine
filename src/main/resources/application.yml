@@ -2,6 +2,21 @@ spring:
   application:
     name: fraud-rule-engine
 
+  # Virtual threads (Project Loom) — enabled for all Tomcat request handling, @Async tasks,
+  # and @Scheduled jobs.  With Java 25 + Spring Boot 4, this single property replaces the
+  # entire platform-thread pool tuning block below.  Virtual threads are extremely lightweight
+  # (each ~few hundred bytes vs ~1 MB per platform thread stack) and are created on demand
+  # rather than pre-allocated, so the service can handle tens of thousands of concurrent
+  # fraud evaluations without thread-pool exhaustion or context-switching overhead.
+  #
+  # IMPORTANT: With virtual threads the DB connection pool (HikariCP) becomes the primary
+  # concurrency bottleneck — virtual threads block cheaply while waiting for a JDBC connection,
+  # but they still need one.  Set maximum-pool-size to match the database's max_connections
+  # limit minus headroom for admin/monitoring connections.
+  threads:
+    virtual:
+      enabled: true
+
   datasource:
     # Connection details supplied via environment variables (see docker-compose.yml).
     # Localhost defaults allow the service to start with a local PostgreSQL instance (Docker Compose).
@@ -14,8 +29,12 @@ spring:
     # so keeping a healthy pool prevents contention under load.
     hikari:
       pool-name: FraudRuleEnginePool
-      maximum-pool-size: 20       # max concurrent DB connections; increase for high-traffic deployments
-      minimum-idle: 5             # warm connections to avoid cold-start latency
+      # With virtual threads, the DB connection pool is the primary concurrency bottleneck.
+      # Virtual threads block cheaply while waiting for a JDBC connection, so throughput
+      # scales with pool size (up to the DB's max_connections limit).
+      # PostgreSQL default max_connections = 100; reserve ~10 for admin/monitoring → 90 usable.
+      maximum-pool-size: 50       # sized for high virtual-thread concurrency; tune to DB capacity
+      minimum-idle: 10            # warm connections to avoid cold-start latency on bursts
       connection-timeout: 30000   # ms: how long to wait for a connection before throwing
       idle-timeout: 600000        # ms: how long idle connections are kept before being evicted
       max-lifetime: 1800000       # ms: max lifetime of a connection in the pool (must be < DB timeout)
@@ -60,13 +79,13 @@ server:
   error:
     # NEVER expose raw exception messages to callers — leaks schema, class names, SQL errors.
     include-message: never
-  # Tomcat thread pool — sized for a fraud evaluation service that does synchronous DB I/O.
-  # Default is 200 max threads; made explicit here so DevOps can tune per environment.
   tomcat:
-    threads:
-      max: 200          # maximum number of concurrent request-handling threads
-      min-spare: 10     # threads kept alive when idle (avoids spin-up latency for bursts)
-    accept-count: 100   # queue depth when all threads are busy; requests beyond this are rejected
+    # With virtual threads enabled, threads.max and min-spare are not configured here —
+    # virtual threads are created on demand by the JVM and do not use a fixed pool.
+    # The accept-count and connection-timeout below remain relevant as they control the
+    # TCP-level accept backlog and idle keep-alive behaviour, not the thread pool.
+    accept-count: 500   # TCP backlog queue depth — raised from 100 since virtual threads
+                        # process requests faster and the queue drains more quickly
     connection-timeout: 20000  # ms: idle connection closed after this period
 
 # Rate limiting — protects the fraud engine against DoS and prevents any single client

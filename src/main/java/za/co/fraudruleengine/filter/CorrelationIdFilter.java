@@ -31,9 +31,10 @@ import java.util.UUID;
  *       that callers can correlate their own trace with the server-side log entry.</li>
  * </ol>
  *
- * <p>MDC cleanup is guaranteed by the {@code finally} block to prevent leakage across
- * thread-pool reuse. Without this, a Tomcat worker thread that is reused for a subsequent
- * request would still carry the previous request's correlation ID in its MDC context.
+ * <p>MDC cleanup is guaranteed by the {@code finally} block to prevent correlation ID leakage
+ * across requests. With virtual threads each request gets its own thread, but the cleanup
+ * remains critical because virtual threads can be remounted on a carrier thread that may be
+ * reused — the MDC context is thread-local and must be cleared regardless of threading model.
  *
  * <p>This filter is ordered first ({@code @Order(1)}) to ensure the correlation ID is
  * available in MDC before the JWT filter runs, so that authentication log entries are also
