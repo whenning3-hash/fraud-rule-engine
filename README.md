@@ -83,7 +83,7 @@ HTTP request
 | **COUNTRY_MISMATCH_RULE** | Current country differs from any country in the last 24 h | Different ISO 3166-1 country | 50 |
 | **UNUSUAL_MERCHANT_CATEGORY_RULE** | First-ever transaction in a given merchant category for the account | No prior history for that category | 15 |
 
-A **FraudAlert** is created when the combined risk score reaches or exceeds the configurable threshold (default: **60**; set to **20** in `application-local.yml` so individual rules trigger alerts during demos without requiring combined signals).
+A **FraudAlert** is created when the combined risk score reaches or exceeds the configurable threshold (default: **60**; set to **20** in `application-local.yml` so that individual rules trigger fraud alerts in isolation, allowing each rule's behaviour to be verified independently).
 
 All thresholds and risk weights are stored in the database and can be updated live via the Rules API — no redeployment needed.
 
@@ -210,7 +210,7 @@ bru run Performance/SLA-Submit-Transaction.bru \
 
 ## Testing with Postman (Alternative)
 
-The Postman collection is in `postman/` for reviewers who prefer Postman.
+The Postman collection is in `postman/` as an alternative to Bruno.
 
 1. Open Postman → **Import** → select `postman/fraud-rule-engine.postman_collection.json`
 2. Import the environment: `postman/FRE-Local.postman_environment.json`
@@ -424,13 +424,13 @@ This service uses a **single active profile: `local`** (set in `docker-compose.y
 | Profile | Activated by | Swagger | Security | Threshold |
 |---|---|---|---|---|
 | _(base)_ | Always loaded | Off | **On** | 60 |
-| `local` | `SPRING_PROFILES_ACTIVE=local` | **On** (for API exploration) | **On** | **20** (demo) |
+| `local` | `SPRING_PROFILES_ACTIVE=local` | **On** | **On** | **20** |
 
 **Why a single profile?**
-The assessors test exclusively via Docker Compose. There is no benefit in shipping dev/int/qa/prod profiles that can never be activated in this context; their presence would imply a multi-environment pipeline that doesn't exist here. A single profile avoids ambiguity — everything in `application-local.yml` is intentional and visible.
+The service is deployed via Docker Compose, which sets `SPRING_PROFILES_ACTIVE=local`. A single active profile avoids ambiguity — every configuration choice in `application-local.yml` is explicit and visible. The base `application.yml` contains safe production defaults; the `local` profile overrides only what differs (score threshold, Swagger visibility).
 
-**Why is Swagger enabled if this is production-grade?**
-Swagger UI (`http://localhost:8080/swagger-ui/index.html`) is enabled in the `local` profile specifically to allow assessors to explore and test all endpoints interactively. The base `application.yml` has `springdoc.api-docs.enabled=false`; the local override re-enables it. Swagger routes are gated behind `authenticated()` in `SecurityConfig` — a valid Bearer token is required even to access the API docs.
+**Why is Swagger enabled?**
+Swagger UI (`http://localhost:8080/swagger-ui/index.html`) is enabled so the API can be explored and tested interactively without an external tool. The base `application.yml` has `springdoc.api-docs.enabled=false`; the `local` profile overrides it. Swagger routes are protected by `authenticated()` in `SecurityConfig` — a valid Bearer token is required.
 
 **Production hardening active in the `local` profile:**
 - `fraud.security.enabled=true` — JWT enforced on all protected endpoints
@@ -469,7 +469,7 @@ The service enforces banking-grade security controls and is designed with the **
 |---------|--------------------------------------|
 | **JWT auth** | Required on all endpoints except `/api/v1/auth/token` and `/actuator/health`. Returns `401 Unauthorized` with RFC 7807 JSON body when credentials are absent. |
 | **JWT secret** | Defaults to a built-in base64 key for Docker Compose convenience. Override via `JWT_SECRET` environment variable in any real deployment. |
-| **Swagger / OpenAPI** | Enabled in `local` profile so assessors can explore the API at `http://localhost:8080/swagger-ui/index.html`. Swagger routes require a valid Bearer token (`authenticated()` in `SecurityConfig`). |
+| **Swagger / OpenAPI** | Enabled in `local` profile at `http://localhost:8080/swagger-ui/index.html`. Swagger routes require a valid Bearer token (`authenticated()` in `SecurityConfig`). |
 | **Error messages** | Suppressed (`server.error.include-message: never`) — no stack traces or schema detail returned to callers. |
 | **Rate limiting** | 120 req/min per IP on transactions, 30 req/min on `/auth/token`, 1000 req/min global. Exceeded limits return `429 Too Many Requests` with `Retry-After` header. |
 | **Actuator** | Only `/actuator/health` exposed — `/actuator/info` disabled to prevent build metadata leakage. |
@@ -488,13 +488,13 @@ The service enforces banking-grade security controls and is designed with the **
 
 **Getting a token:**
 
-1. Call `POST /api/v1/auth/token` with any username and password to get a Bearer token
+1. Call `POST /api/v1/auth/token` with valid credentials to get a Bearer token
 2. Include `Authorization: Bearer <token>` on all subsequent API calls
 3. Tokens expire after 24 hours (configurable via `fraud.security.jwt.expiration-ms`)
 
-> **Fraud score threshold:** The `local` profile sets the fraud score threshold to **20** (production default: 60). This means individual rules (e.g. NIGHT_TIME_ATM_RULE with weight 45, or ROUND_NUMBER_AMOUNT_RULE with weight 25) trigger fraud alerts on their own, making each rule independently demonstrable in Bruno or Postman without needing to combine multiple signals.
+> **Fraud score threshold:** The `local` profile sets the fraud score threshold to **20** (base default: 60). Individual rules such as NIGHT_TIME_ATM_RULE (weight 45) or ROUND_NUMBER_AMOUNT_RULE (weight 25) trigger fraud alerts independently, allowing each rule's behaviour to be verified in isolation.
 
-> **Note:** The `/api/v1/auth/token` endpoint accepts any credentials for demo purposes. In a real production system this would validate against a user store or OAuth2 provider (e.g. Keycloak).
+> **Auth credentials:** The `/api/v1/auth/token` endpoint validates against a BCrypt-hashed in-memory user store. Registered users: `admin`/`admin123`, `analyst`/`analyst456`, `readonly`/`readonly789`. In a deployment backed by an enterprise IdP the credential validation would be delegated there; the token-issuance contract is unchanged.
 
 ---
 

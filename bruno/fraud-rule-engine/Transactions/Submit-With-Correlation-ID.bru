@@ -4,18 +4,17 @@ meta {
   seq: 7
 }
 
-# Demonstrates X-Capitec-Correlation-ID request tracing.
+# X-Capitec-Correlation-ID request tracing.
 #
-# The CorrelationIdFilter propagates this header through the full request
-# lifecycle: it is stamped on every MDC log line so engineers can grep
-# a single correlation ID to trace all events for one transaction across
-# all downstream services.
+# The CorrelationIdFilter propagates this header through the full request lifecycle
+# and stamps it on every MDC log line. Engineers can grep a single correlation ID
+# to trace all events for one request across all downstream services.
 #
 # Behaviour:
-#   - If the header is present, the same value is echoed back in the response
-#     header (upstream callers can correlate their own trace).
-#   - If the header is absent, the filter generates a UUID and writes it to
-#     the response — so every request has a traceable identity regardless of origin.
+#   - If the header is present, the same value is echoed back in the response header
+#     so upstream callers can correlate their own trace with this service's logs.
+#   - If the header is absent, the filter generates a UUID and writes it to the
+#     response — ensuring every request has a traceable identity regardless of origin.
 
 post {
   url: {{baseUrl}}/api/v1/transactions

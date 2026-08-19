@@ -36,9 +36,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  *
  * <p>Swagger UI ({@code /swagger-ui/**}, {@code /api-docs/**}) is disabled in the base
  * {@code application.yml} via {@code springdoc.api-docs.enabled=false}. It is re-enabled in
- * {@code application-local.yml} so that assessors can explore the API interactively at
+ * {@code application-local.yml} for interactive API access at
  * {@code http://localhost:8080/swagger-ui/index.html}. Swagger routes are gated behind
- * {@code .authenticated()} so a valid Bearer token is still required to access them.
+ * {@code .authenticated()} so a valid Bearer token is required to access them.
  *
  * <p>Security can be disabled entirely via {@code fraud.security.enabled=false}. This flag
  * exists solely for integration tests, which override it using {@code @TestPropertySource}.

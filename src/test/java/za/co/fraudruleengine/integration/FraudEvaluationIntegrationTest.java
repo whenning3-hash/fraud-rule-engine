@@ -43,10 +43,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @Testcontainers
 @ActiveProfiles("local")
-// The local profile now has fraud.security.enabled=true so that Docker Compose assessors
-// experience the full JWT authentication flow.  Integration tests override it back to false
-// here so that test methods can focus on business logic without having to acquire tokens —
-// the auth flow itself is covered by authToken_validCredentials_returns200WithAccessToken().
+// The local profile has fraud.security.enabled=true (full JWT enforcement).
+// Integration tests override it to false here so test methods focus on business logic
+// rather than token acquisition — the auth flow is covered by its own dedicated tests.
 @TestPropertySource(properties = "fraud.security.enabled=false")
 class FraudEvaluationIntegrationTest {
 

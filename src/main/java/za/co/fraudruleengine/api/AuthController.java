@@ -20,10 +20,11 @@ import java.util.Map;
 /**
  * REST controller that issues JWT Bearer tokens for API authentication.
  *
- * <p>Credentials are validated against a static in-memory user map. This keeps the service
- * self-contained for demo and testing purposes. In a production deployment this would be
- * replaced by an integration with a proper identity provider (e.g. Keycloak, Azure AD) and
- * credential validation would be delegated to that system.
+ * <p>Credentials are validated against a BCrypt-hashed in-memory user store. Each user entry
+ * stores only the hashed credential — plain-text passwords are never retained. In a production
+ * deployment backed by an enterprise IdP (e.g. Keycloak, Azure AD), this controller would
+ * delegate validation to that system; the token-issuance contract ({@code /api/v1/auth/token}
+ * → JWT Bearer response) remains unchanged.
  *
  * <p>The {@code /api/v1/auth/**} path pattern is explicitly permit-listed in
  * {@link za.co.fraudruleengine.config.SecurityConfig} so that the token endpoint
@@ -58,10 +59,11 @@ public class AuthController {
      * Static credential store — username → BCrypt hash.
      *
      * <p>Passwords are hashed at class-load time using BCrypt (cost=10). Plain-text passwords
-     * are never stored. In a production deployment this map would be replaced by a query against
-     * a proper user store or delegated entirely to an OAuth2 / IdP provider (e.g. Keycloak).
+     * are never retained. In a deployment backed by an IdP (e.g. Keycloak), this map would be
+     * replaced by a delegated authentication call; the surrounding token-issuance logic remains
+     * unchanged.
      *
-     * <p>Demo credentials:
+     * <p>Registered users:
      * <ul>
      *   <li>{@code admin} / {@code admin123}</li>
      *   <li>{@code analyst} / {@code analyst456}</li>

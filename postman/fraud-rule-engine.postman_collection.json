@@ -1156,7 +1156,7 @@
                 "transactions"
               ]
             },
-            "description": "Demonstrates X-Capitec-Correlation-ID request tracing.\n\nThe CorrelationIdFilter propagates this header through the full request lifecycle \u2014 stamped on every MDC log line. An engineer can grep a single correlation ID to trace all events for one request across services.\n\n**Expected response headers:**\n- `X-Capitec-Correlation-ID: upstream-system-trace-postman` (echoed back)\n- `Location: /api/v1/transactions/{id}` (RFC 7231 \u00a76.3.2)"
+            "description": "X-Capitec-Correlation-ID request tracing.\n\nThe CorrelationIdFilter propagates this header through the full request lifecycle \u2014 stamped on every MDC log line. An engineer can grep a single correlation ID to trace all events for one request across services.\n\n**Expected response headers:**\n- `X-Capitec-Correlation-ID: upstream-system-trace-postman` (echoed back)\n- `Location: /api/v1/transactions/{id}` (RFC 7231 \u00a76.3.2)"
           },
           "response": []
         }

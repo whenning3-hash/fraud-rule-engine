@@ -1,67 +1,66 @@
 ################################################################################
-# Local Environment Profile — Production-Grade Configuration
+# Local Environment Profile
 #
 # Activated by: SPRING_PROFILES_ACTIVE=local  (set in docker-compose.yml)
 #
-# This is the ONLY active environment profile for this service.  The service is
-# deployed and tested exclusively via Docker Compose; therefore this profile
-# carries the full production security posture — nothing is bypassed or relaxed
-# beyond what is strictly necessary to enable interactive API exploration by
-# assessors.
+# This is the sole active environment profile. It runs with the full production
+# security posture — nothing is bypassed. All controls that would be enforced
+# in a live deployment are active here:
 #
-# Security posture (identical to production):
-#   - JWT authentication is ENFORCED on all protected endpoints.
-#   - Unauthenticated requests receive 401 Unauthorized (not 403).
-#   - Rate limiting is active on both transaction and auth endpoints.
-#   - Exception detail is NEVER returned in API responses.
-#   - SQL statements are NOT logged to stdout.
+#   - JWT authentication is ENFORCED on all protected endpoints
+#   - Unauthenticated requests return 401 Unauthorized
+#   - Rate limiting is active on transaction and auth endpoints
+#   - Exception detail is never returned in API responses
+#   - SQL statements are not logged to stdout
 #
-# Swagger UI is enabled to allow assessors to explore and test all endpoints
-# interactively via the browser.  In a real production deployment this would
-# be disabled and the OpenAPI spec would be served from an internal docs portal.
+# Swagger UI is enabled so that the API can be explored interactively at
+# http://localhost:8080/swagger-ui/index.html. Swagger routes are protected
+# behind the standard JWT requirement — a valid Bearer token must be presented.
+# In a deployment where an internal docs portal is available, this flag would
+# be left at the base default (false).
 #
 # Obtaining a token:
 #   POST /api/v1/auth/token
 #   Body:  {"username":"admin","password":"admin123"}
-#   Copy the "accessToken" value, then pass it as:
-#   Authorization: Bearer <token>   on every other request.
+#   Use the returned "accessToken" as:
+#   Authorization: Bearer <token>   on every subsequent request.
 #
 # Integration tests override fraud.security.enabled=false via @TestPropertySource
-# so that they do not need to acquire JWT tokens at test runtime.
+# so that they can assert business logic without acquiring tokens at runtime.
 ################################################################################
 
 fraud:
   security:
-    # JWT authentication enforced — assessors must authenticate exactly as production requires.
-    # Integration tests override this to false via @TestPropertySource so they run without tokens.
+    # JWT authentication enforced. Integration tests override this to false via
+    # @TestPropertySource so they run independently of the auth flow.
     enabled: true
   score:
-    # Lowered from the production default of 60 to 20 for demo observability.
-    # Individual rules trigger fraud alerts so that Bruno / Postman / Swagger test scenarios
-    # produce visible fraud events without needing to combine multiple rule signals at once.
+    # Threshold set to 20 so that individual rules trigger fraud alerts.
+    # This allows each rule's behaviour to be verified in isolation without
+    # needing multiple signals to accumulate above the production default of 60.
     threshold: 20
 
 spring:
   jpa:
-    show-sql: false  # Production behaviour: SQL is never logged to stdout.
+    show-sql: false  # SQL not logged to stdout — production behaviour.
 
 server:
   error:
-    # Production behaviour: exception detail is never exposed in API responses.
-    # Use Docker logs for debugging: docker logs fraud-rule-engine
+    # Exception detail is never exposed in API responses — production behaviour.
+    # Use Docker logs for diagnostics: docker logs fraud-rule-engine
     include-message: never
 
 rate-limit:
   auth:
-    # Auth endpoint rate limit is active.  A ceiling of 30 rpm is relaxed enough for manual
-    # testing with Bruno / Postman while still demonstrating automated credential-stuffing protection.
+    # Auth endpoint rate limit active. 30 rpm allows normal API use while protecting
+    # against automated credential-stuffing attacks.
     enabled: true
     requests-per-minute: 30
 
 springdoc:
   api-docs:
-    # Swagger UI is enabled so assessors can explore all endpoints interactively in the browser.
-    # Access at: http://localhost:8080/swagger-ui/index.html
+    # Swagger UI enabled for interactive API exploration at /swagger-ui/index.html.
+    # A valid Bearer token is required to access the documentation.
     enabled: true
   swagger-ui:
     enabled: true

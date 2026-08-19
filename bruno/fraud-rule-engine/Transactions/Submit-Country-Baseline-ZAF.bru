@@ -28,17 +28,18 @@ body:json {
 }
 
 docs {
-  ## Step 1 of 2 — Country Mismatch Demo
+  ## Step 1 of 2 — Country Mismatch Scenario
 
-  Run this request FIRST to establish a South African transaction history for ACC-007.
-  The COUNTRY_MISMATCH_RULE looks back 24 hours and needs at least one prior transaction
-  in a different country to fire.
+  Run this request FIRST to establish South African transaction history for ACC-007.
+  The COUNTRY_MISMATCH_RULE evaluates the last 24 hours and requires at least one prior
+  transaction in a different country to trigger.
 
-  After this request:
-    → Run "Submit Country Mismatch" (Step 2) with the same accountId ACC-007 but countryCode GBR.
-    → The rule detects ZAF in history vs GBR now → impossible travel → riskScore +50.
+  After this request succeeds:
+    → Run "Submit Country Mismatch" (Step 2) with accountId ACC-007 and countryCode GBR.
+    → The rule detects ZAF in history vs GBR on the current transaction → impossible travel
+      within the 24-hour window → riskScore +50 → FraudAlert created.
 
-  This request on its own is clean (fraudulent=false, score=15 from UNUSUAL_CATEGORY only).
+  This request alone is clean: fraudulent=false, riskScore=15 (UNUSUAL_CATEGORY only).
 }
 
 tests {
