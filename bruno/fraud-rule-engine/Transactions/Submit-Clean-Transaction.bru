@@ -21,7 +21,7 @@ body:json {
     "currency": "ZAR",
     "merchantName": "Pick n Pay Claremont",
     "merchantCategory": "GROCERY",
-    "channel": "CARD_PRESENT",
+    "channel": "POS",
     "countryCode": "ZAF",
     "transactionTime": "2025-01-15T10:30:00"
   }
@@ -52,6 +52,18 @@ tests {
   test("Account ID echoed back", function() {
     var json = res.getBody();
     expect(json.accountId).to.equal("ACC-001");
+  });
+
+  test("Location header points to created resource (RFC 7231 §6.3.2)", function() {
+    var location = res.getHeader("Location");
+    expect(location).to.be.a("string");
+    expect(location).to.include("/api/v1/transactions/");
+  });
+
+  test("Correlation ID is present in response header", function() {
+    var corrId = res.getHeader("X-Capitec-Correlation-ID");
+    expect(corrId).to.be.a("string");
+    expect(corrId.length).to.be.greaterThan(0);
   });
 }
 

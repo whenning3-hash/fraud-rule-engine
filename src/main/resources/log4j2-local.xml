@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN">
     <Properties>
-        <Property name="LOG_PATTERN">%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
+        <!-- Shorter date for local console readability; correlationId included for tracing.
+             Empty brackets [] on startup/infra logs are expected — no request context there. -->
+        <Property name="LOG_PATTERN">%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} [%X{correlationId}] - %msg%n</Property>
     </Properties>
 
     <Appenders>

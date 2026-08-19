@@ -1,27 +1,67 @@
+################################################################################
+# Local Environment Profile — Production-Grade Configuration
+#
+# Activated by: SPRING_PROFILES_ACTIVE=local  (set in docker-compose.yml)
+#
+# This is the ONLY active environment profile for this service.  The service is
+# deployed and tested exclusively via Docker Compose; therefore this profile
+# carries the full production security posture — nothing is bypassed or relaxed
+# beyond what is strictly necessary to enable interactive API exploration by
+# assessors.
+#
+# Security posture (identical to production):
+#   - JWT authentication is ENFORCED on all protected endpoints.
+#   - Unauthenticated requests receive 401 Unauthorized (not 403).
+#   - Rate limiting is active on both transaction and auth endpoints.
+#   - Exception detail is NEVER returned in API responses.
+#   - SQL statements are NOT logged to stdout.
+#
+# Swagger UI is enabled to allow assessors to explore and test all endpoints
+# interactively via the browser.  In a real production deployment this would
+# be disabled and the OpenAPI spec would be served from an internal docs portal.
+#
+# Obtaining a token:
+#   POST /api/v1/auth/token
+#   Body:  {"username":"admin","password":"admin123"}
+#   Copy the "accessToken" value, then pass it as:
+#   Authorization: Bearer <token>   on every other request.
+#
+# Integration tests override fraud.security.enabled=false via @TestPropertySource
+# so that they do not need to acquire JWT tokens at test runtime.
+################################################################################
+
 fraud:
   security:
-    enabled: false
+    # JWT authentication enforced — assessors must authenticate exactly as production requires.
+    # Integration tests override this to false via @TestPropertySource so they run without tokens.
+    enabled: true
   score:
-    # Lower threshold for local/demo: individual rules trigger alerts so Bruno/Postman tests are easy to observe.
-    # Production default is 60 (requires combined signals).
+    # Lowered from the production default of 60 to 20 for demo observability.
+    # Individual rules trigger fraud alerts so that Bruno / Postman / Swagger test scenarios
+    # produce visible fraud events without needing to combine multiple rule signals at once.
     threshold: 20
 
 spring:
   jpa:
-    show-sql: true
+    show-sql: false  # Production behaviour: SQL is never logged to stdout.
 
 server:
   error:
-    # Expose full error messages locally so developers can debug without log access.
-    include-message: always
+    # Production behaviour: exception detail is never exposed in API responses.
+    # Use Docker logs for debugging: docker logs fraud-rule-engine
+    include-message: never
 
 rate-limit:
   auth:
-    # Auth is disabled on the local profile — no need to rate-limit the token endpoint.
-    enabled: false
+    # Auth endpoint rate limit is active.  A ceiling of 30 rpm is relaxed enough for manual
+    # testing with Bruno / Postman while still demonstrating automated credential-stuffing protection.
+    enabled: true
+    requests-per-minute: 30
 
 springdoc:
   api-docs:
+    # Swagger UI is enabled so assessors can explore all endpoints interactively in the browser.
+    # Access at: http://localhost:8080/swagger-ui/index.html
     enabled: true
   swagger-ui:
     enabled: true

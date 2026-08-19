@@ -1,0 +1,48 @@
+meta {
+  name: Submit Online Night (Negative - NIGHT_TIME_ATM_RULE should NOT fire for ONLINE)
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "accountId": "ACC-ONLINE-NEGATIVE",
+    "amount": 2000.00,
+    "currency": "ZAR",
+    "merchantName": "Amazon",
+    "merchantCategory": "ONLINE_RETAIL",
+    "channel": "ONLINE",
+    "countryCode": "ZAF",
+    "transactionTime": "2025-01-15T02:00:00"
+  }
+}
+
+tests {
+  test("Status is 201 Created", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("NIGHT_TIME_ATM_RULE must NOT fire for ONLINE channel", function() {
+    var json = res.getBody();
+    // ChannelType.ONLINE is NOT in the CASH_CHANNELS EnumSet (only ATM and POS qualify).
+    // NIGHT_TIME_ATM requires channel=ATM or channel=POS — this is the key ChannelType isolation test.
+    // If NIGHT_TIME_ATM fired, the score would be riskScore = offHours(20) + nightAtm(45) = 65 minimum.
+    // An ONLINE transaction at 02:00 should only trigger OFF_HOURS_RULE (+20), not NIGHT_TIME_ATM (+45).
+    // Therefore riskScore < 45 confirms NIGHT_TIME_ATM did not fire.
+    expect(json.riskScore).to.be.lessThan(45);
+  });
+}
+
+vars:post {
+  transactionId: res.body.id
+}

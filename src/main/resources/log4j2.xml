@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="WARN">
     <Properties>
-        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
-        <Property name="LOG_PATTERN_JSON">{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ}","level":"%p","thread":"%t","logger":"%c{1}","message":"%enc{%m}{JSON}"}%n</Property>
+        <!-- %X{correlationId} reads the MDC key set by CorrelationIdFilter for every HTTP
+             request.  Non-request logs (Flyway, startup) have no request context so the
+             brackets are empty — that is expected and distinguishes infra-level logs from
+             request-level ones.  Do NOT use %X{key:-default} — Log4j2 PatternLayout treats
+             the entire string between braces as the literal key name; the ':-' suffix is only
+             meaningful in configuration Lookups, not in pattern conversion specifiers. -->
+        <Property name="LOG_PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} [%X{correlationId}] - %msg%n</Property>
+        <Property name="LOG_PATTERN_JSON">{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ}","level":"%p","thread":"%t","logger":"%c{1}","correlationId":"%X{correlationId}","message":"%enc{%m}{JSON}"}%n</Property>
     </Properties>
 
     <Appenders>

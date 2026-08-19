@@ -1,9 +1,11 @@
 package za.co.fraudruleengine.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -32,13 +34,15 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  *   <li>{@code /actuator/health} — liveness probe for container orchestration</li>
  * </ul>
  *
- * <p>Swagger UI ({@code /swagger-ui/**}, {@code /api-docs/**}) is disabled in production via
- * {@code springdoc.api-docs.enabled=false} in {@code application.yml} and therefore never
- * reached. It is re-enabled only by the {@code local} profile where security is off entirely.
+ * <p>Swagger UI ({@code /swagger-ui/**}, {@code /api-docs/**}) is disabled in the base
+ * {@code application.yml} via {@code springdoc.api-docs.enabled=false}. It is re-enabled in
+ * {@code application-local.yml} so that assessors can explore the API interactively at
+ * {@code http://localhost:8080/swagger-ui/index.html}. Swagger routes are gated behind
+ * {@code .authenticated()} so a valid Bearer token is still required to access them.
  *
- * <p>Security can be disabled entirely for local development via
- * {@code fraud.security.enabled=false}, which permits all requests without a token. This must
- * never be set to {@code false} in any non-local environment.
+ * <p>Security can be disabled entirely via {@code fraud.security.enabled=false}. This flag
+ * exists solely for integration tests, which override it using {@code @TestPropertySource}.
+ * The {@code local} profile (the only active profile) keeps security fully enabled.
  */
 @Configuration
 @EnableWebSecurity
@@ -48,9 +52,9 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     /**
-     * Feature flag to disable security for local development.
-     * Defaults to {@code true} (security enabled). Must remain {@code true} in all
-     * non-local environments.
+     * Feature flag controlling JWT enforcement.
+     * Defaults to {@code true} (security enforced). The only supported use of {@code false}
+     * is in integration tests via {@code @TestPropertySource} — never disable in any running environment.
      */
     @Value("${fraud.security.enabled:true}")
     private boolean securityEnabled;
@@ -68,7 +72,9 @@ public class SecurityConfig {
      * </ol>
      *
      * <p>When {@code fraud.security.enabled} is {@code false}, all requests are permitted
-     * without a token. The JWT filter is not added in this case.
+     * without a token. The JWT filter is not added in this case. This mode is used exclusively
+     * by integration tests via {@code @TestPropertySource(properties = "fraud.security.enabled=false")}
+     * so that test assertions do not require acquiring JWT tokens at runtime.
      *
      * @param http the {@link HttpSecurity} builder provided by Spring Security
      * @return the built {@link SecurityFilterChain}
@@ -91,9 +97,24 @@ public class SecurityConfig {
                     // All other endpoints require a valid JWT
                     .anyRequest().authenticated()
             )
+            // RFC 7235: return 401 Unauthorized (not 403 Forbidden) when credentials are absent.
+            // Spring Security 6's default falls back to 403 for unauthenticated requests when no
+            // AuthenticationEntryPoint is set, which misleads clients that check status codes to
+            // decide whether to re-authenticate (401) or show an "access denied" error (403).
+            .exceptionHandling(ex -> ex
+                    .authenticationEntryPoint((request, response, authException) -> {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                        response.getWriter().write(
+                                "{\"status\":401,\"title\":\"Unauthorized\","
+                                + "\"detail\":\"Authentication is required. "
+                                + "Provide a valid Bearer token in the Authorization header.\"}");
+                    })
+            )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         } else {
-            // Development mode: bypass all authentication — NEVER use in production
+            // Security bypassed — used ONLY by integration tests via @TestPropertySource.
+            // Never set fraud.security.enabled=false in any running environment profile.
             http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
         }
 

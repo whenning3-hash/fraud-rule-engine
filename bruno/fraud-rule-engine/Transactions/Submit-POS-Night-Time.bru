@@ -1,0 +1,58 @@
+meta {
+  name: Submit POS Night-Time (Fraud Trigger - NIGHT_TIME_ATM_RULE via POS)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {
+    "accountId": "ACC-POS-NIGHT",
+    "amount": 3500.00,
+    "currency": "ZAR",
+    "merchantName": "Engen 24h Petrol Station",
+    "merchantCategory": "FUEL",
+    "channel": "POS",
+    "countryCode": "ZAF",
+    "transactionTime": "2025-01-15T03:15:00"
+  }
+}
+
+tests {
+  test("Status is 201 Created", function() {
+    var json = res.getBody();
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("POS channel at night flagged by NIGHT_TIME_ATM_RULE", function() {
+    var json = res.getBody();
+    // ChannelType.POS is in the CASH_CHANNELS set (EnumSet.of(ATM, POS))
+    // All three conditions met: hour=03 (off-hours), channel=POS (cash), amount=R3500 >= R1500 minimum
+    // Risk weight = 45 >= local threshold = 20
+    expect(json.fraudulent).to.equal(true);
+  });
+
+  test("Risk score is at least 45 (NIGHT_TIME_ATM_RULE weight)", function() {
+    var json = res.getBody();
+    expect(json.riskScore).to.be.greaterThanOrEqualTo(45);
+  });
+
+  test("Channel echoed back as POS", function() {
+    var json = res.getBody();
+    // Verifies the ChannelType.POS string value round-trips correctly
+    expect(json.channel).to.equal("POS");
+  });
+}
+
+vars:post {
+  transactionId: res.body.id
+}

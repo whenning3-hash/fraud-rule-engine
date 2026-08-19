@@ -3,9 +3,8 @@ spring:
     name: fraud-rule-engine
 
   datasource:
-    # Connection details are always supplied via environment variables or Vault injection.
-    # Localhost defaults allow the service to start with a local PostgreSQL instance (local profile + Docker Compose).
-    # Non-local environments must set DB_URL, DB_USERNAME, DB_PASSWORD — no default is provided for prod.
+    # Connection details supplied via environment variables (see docker-compose.yml).
+    # Localhost defaults allow the service to start with a local PostgreSQL instance (Docker Compose).
     url: ${DB_URL:jdbc:postgresql://localhost:5432/frauddb}
     username: ${DB_USERNAME:frauduser}
     password: ${DB_PASSWORD:fraudpass}
@@ -60,7 +59,6 @@ server:
   port: 8080
   error:
     # NEVER expose raw exception messages to callers — leaks schema, class names, SQL errors.
-    # Override to 'always' only in the local profile for developer convenience.
     include-message: never
   # Tomcat thread pool — sized for a fraud evaluation service that does synchronous DB I/O.
   # Default is 200 max threads; made explicit here so DevOps can tune per environment.

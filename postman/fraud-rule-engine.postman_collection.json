@@ -219,6 +219,17 @@
                   "    var json = pm.response.json();",
                   "    pm.expect(json.fraudulent).to.be.false;",
                   "    pm.expect(json.riskScore).to.be.below(60);",
+                  "});",
+                  "",
+                  "pm.test('Location header points to created resource', function () {",
+                  "    var location = pm.response.headers.get('Location');",
+                  "    pm.expect(location).to.be.a('string');",
+                  "    pm.expect(location).to.include('/api/v1/transactions/');",
+                  "});",
+                  "",
+                  "pm.test('Correlation ID is present in response header', function () {",
+                  "    var corrId = pm.response.headers.get('X-Capitec-Correlation-ID');",
+                  "    pm.expect(corrId).to.be.a('string').and.to.have.length.above(0);",
                   "});"
                 ]
               }
@@ -1079,6 +1090,75 @@
               ]
             }
           }
+        },
+        {
+          "name": "Submit Transaction \u2014 With Correlation ID (Request Tracing)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Upstream correlation ID is echoed back in response header', function () {",
+                  "    var corrId = pm.response.headers.get('X-Capitec-Correlation-ID');",
+                  "    pm.expect(corrId).to.equal('upstream-system-trace-postman');",
+                  "});",
+                  "",
+                  "pm.test('Location header points to created resource (RFC 7231 \u00a76.3.2)', function () {",
+                  "    var location = pm.response.headers.get('Location');",
+                  "    pm.expect(location).to.be.a('string');",
+                  "    pm.expect(location).to.include('/api/v1/transactions/');",
+                  "});",
+                  "",
+                  "pm.test('Transaction evaluated with risk score', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('id');",
+                  "    pm.expect(json.riskScore).to.be.a('number');",
+                  "});",
+                  "",
+                  "if (pm.response.json().id) {",
+                  "    pm.collectionVariables.set('transactionId', pm.response.json().id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Capitec-Correlation-ID",
+                "value": "upstream-system-trace-postman",
+                "description": "Upstream trace ID \u2014 echoed back in response header and stamped on every log line"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountId\": \"ACC-TRACE\",\n  \"amount\": 500.0,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Capitec ATM Bellville\",\n  \"merchantCategory\": \"CASH_WITHDRAWAL\",\n  \"channel\": \"ATM\",\n  \"countryCode\": \"ZAF\",\n  \"transactionTime\": \"2025-01-15T10:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "transactions"
+              ]
+            },
+            "description": "Demonstrates X-Capitec-Correlation-ID request tracing.\n\nThe CorrelationIdFilter propagates this header through the full request lifecycle \u2014 stamped on every MDC log line. An engineer can grep a single correlation ID to trace all events for one request across services.\n\n**Expected response headers:**\n- `X-Capitec-Correlation-ID: upstream-system-trace-postman` (echoed back)\n- `Location: /api/v1/transactions/{id}` (RFC 7231 \u00a76.3.2)"
+          },
+          "response": []
         }
       ]
     },

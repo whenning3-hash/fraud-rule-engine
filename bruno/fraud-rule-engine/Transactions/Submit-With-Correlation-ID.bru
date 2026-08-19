@@ -1,0 +1,73 @@
+meta {
+  name: Submit Transaction with Correlation ID (Request Tracing)
+  type: http
+  seq: 7
+}
+
+# Demonstrates X-Capitec-Correlation-ID request tracing.
+#
+# The CorrelationIdFilter propagates this header through the full request
+# lifecycle: it is stamped on every MDC log line so engineers can grep
+# a single correlation ID to trace all events for one transaction across
+# all downstream services.
+#
+# Behaviour:
+#   - If the header is present, the same value is echoed back in the response
+#     header (upstream callers can correlate their own trace).
+#   - If the header is absent, the filter generates a UUID and writes it to
+#     the response — so every request has a traceable identity regardless of origin.
+
+post {
+  url: {{baseUrl}}/api/v1/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+headers {
+  X-Capitec-Correlation-ID: upstream-system-trace-12345
+}
+
+body:json {
+  {
+    "accountId": "ACC-TRACE",
+    "amount": 500.00,
+    "currency": "ZAR",
+    "merchantName": "Capitec ATM Bellville",
+    "merchantCategory": "CASH_WITHDRAWAL",
+    "channel": "ATM",
+    "countryCode": "ZAF",
+    "transactionTime": "2025-01-15T10:00:00"
+  }
+}
+
+tests {
+  test("Status is 201 Created", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("Upstream correlation ID is echoed back in response header", function() {
+    var corrId = res.getHeader("X-Capitec-Correlation-ID");
+    expect(corrId).to.equal("upstream-system-trace-12345");
+  });
+
+  test("Location header points to created resource", function() {
+    var location = res.getHeader("Location");
+    expect(location).to.be.a("string");
+    expect(location).to.include("/api/v1/transactions/");
+  });
+
+  test("Transaction evaluated and returned with risk score", function() {
+    var json = res.getBody();
+    expect(json).to.have.property("id");
+    expect(json).to.have.property("riskScore");
+    expect(json.riskScore).to.be.a("number");
+  });
+}
+
+vars:post {
+  transactionId: res.body.id
+}

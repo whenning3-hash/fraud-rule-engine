@@ -37,12 +37,15 @@ services:
       - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: local
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/frauddb
-      SPRING_DATASOURCE_USERNAME: frauduser
-      SPRING_DATASOURCE_PASSWORD: fraudpass
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-fraudredis}
+      # Use the same variable names referenced in application.yml (${DB_URL:...}, ${REDIS_HOST:...})
+      # for consistency.  Spring's relaxed binding would also accept SPRING_DATASOURCE_URL, but
+      # keeping the naming aligned with the YML placeholders avoids confusion when tracing config.
+      DB_URL: jdbc:postgresql://postgres:5432/frauddb
+      DB_USERNAME: frauduser
+      DB_PASSWORD: fraudpass
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-fraudredis}
     depends_on:
       postgres:
         condition: service_healthy

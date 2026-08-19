@@ -83,7 +83,7 @@ HTTP request
 | **COUNTRY_MISMATCH_RULE** | Current country differs from any country in the last 24 h | Different ISO 3166-1 country | 50 |
 | **UNUSUAL_MERCHANT_CATEGORY_RULE** | First-ever transaction in a given merchant category for the account | No prior history for that category | 15 |
 
-A **FraudAlert** is created when the combined risk score reaches or exceeds the configurable threshold (default: **60** in production; **20** on the `local` profile to allow individual rules to trigger alerts during demos).
+A **FraudAlert** is created when the combined risk score reaches or exceeds the configurable threshold (default: **60**; set to **20** in `application-local.yml` so individual rules trigger alerts during demos without requiring combined signals).
 
 All thresholds and risk weights are stored in the database and can be updated live via the Rules API — no redeployment needed.
 
@@ -229,7 +229,7 @@ You still need PostgreSQL and Redis running locally:
 docker compose up postgres redis -d
 ```
 
-Then run the application with the `local` profile (security disabled for easy testing):
+Then run the application with the `local` profile:
 
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=local
@@ -237,7 +237,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=local
 
 Or set `SPRING_PROFILES_ACTIVE=local` in your IDE run configuration.
 
-> The `local` profile disables JWT authentication so you can call all endpoints without a token.
+> The `local` profile is the **only** profile and runs with **full production security** — JWT authentication is enforced. Obtain a token from `POST /api/v1/auth/token` before calling protected endpoints.
 
 ---
 
@@ -263,11 +263,11 @@ mvn test
 mvn verify
 ```
 
-**169 unit tests**, **54 integration tests** — 223 total, 0 failures.
+**175 unit tests**, **58 integration tests** — 233 total, 0 failures.
 
-Unit tests (`src/test/java/.../unit/`) — pure JUnit 5 + Mockito, no Spring context, sub-second execution. Covers all 8 fraud rules, the rate-limit filter, the JWT provider, repository adapters, the `LogMaskUtil` POPIA masking utility, the `RuleEvaluationUtils` shared utility, both enums (`RuleName`, `ChannelType`), and the `GlobalExceptionHandler` (each HTTP status code variant). Each rule has positive, negative, boundary-condition, and rule-name identity tests. `RuleNameTest` explicitly asserts that every enum constant's `.name()` matches the corresponding rule class constant — a compile-level guard against DB key drift.
+Unit tests (`src/test/java/.../unit/`) — pure JUnit 5 + Mockito, no Spring context, sub-second execution. Covers all 8 fraud rules, the rate-limit filter, the JWT provider, repository adapters, the `LogMaskUtil` POPIA masking utility, the `RuleEvaluationUtils` shared utility, both enums (`RuleName`, `ChannelType`), the `CorrelationIdFilter` (6 tests covering header propagation, UUID generation, and MDC cleanup), and the `GlobalExceptionHandler` (each HTTP status code variant). Each rule has positive, negative, boundary-condition, and rule-name identity tests. `RuleNameTest` explicitly asserts that every enum constant's `.name()` matches the corresponding rule class constant — a compile-level guard against DB key drift.
 
-Integration tests (`*IntegrationTest`) use Testcontainers to start real PostgreSQL and Redis containers automatically. Docker must be running. Covers full end-to-end fraud evaluation for all 8 rules (positive and negative), alert lifecycle state transitions, rule configuration live updates, HTTP error handling (400/404/405/415), and ChannelType isolation (POS fires NIGHT_TIME_ATM, ONLINE does not). Includes `LoadPerformanceIntegrationTest` which validates:
+Integration tests (`*IntegrationTest`) use Testcontainers to start real PostgreSQL and Redis containers automatically. Docker must be running. Covers full end-to-end fraud evaluation for all 8 rules (positive and negative), alert lifecycle state transitions, rule configuration live updates, HTTP error handling (400/404/405/415), `CorrelationIdFilter` header propagation, `Location` header on 201 responses (RFC 7231 §6.3.2), `@Size` validation on request fields, and ChannelType isolation (POS fires NIGHT_TIME_ATM, ONLINE does not). Includes `LoadPerformanceIntegrationTest` which validates:
 - 20 concurrent requests complete within a 10-second wall-clock budget (virtual threads)
 - High-risk and low-risk transactions are scored independently with no state bleed-through
 - Rate-limit filter returns `429 Too Many Requests` when the per-IP threshold is exceeded
@@ -294,14 +294,14 @@ OpenAPI JSON: **http://localhost:8080/api-docs**
 |---|---|---|
 | `POST` | `/api/v1/auth/token` | Obtain a JWT Bearer token |
 
-**Get a token (local profile: skip this, auth is disabled):**
+**Get a token (required — JWT is enforced):**
 ```bash
 curl -X POST http://localhost:8080/api/v1/auth/token \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "admin123"}'
 ```
 
-Use the returned token as `Authorization: Bearer <token>` on all subsequent requests.
+Copy the `accessToken` value and include it as `Authorization: Bearer <token>` on all subsequent requests.
 
 ---
 
@@ -419,25 +419,25 @@ created_at                alert_id (FK)
 
 ## Spring Profiles
 
-The service follows the same multi-profile structure as all Capitec DMC VAS services. Only the `local` profile is used for this assessment — the remaining profiles are deployment-ready for real environments.
+This service uses a **single active profile: `local`** (set in `docker-compose.yml`). The `local` profile is treated as production-equivalent — every security control that would be enforced in a live deployment is active here.
 
-| Profile | Activated by | Purpose | Swagger | Security | Threshold |
-|---|---|---|---|---|---|
-| _(none)_ | Default | Base config only — connection details via env vars | Off | On | 60 |
-| `local` | `SPRING_PROFILES_ACTIVE=local` | Docker Compose / local dev — security disabled for easy testing | On | **Off** | **20** |
-| `dev` | `SPRING_PROFILES_ACTIVE=dev` | Shared DEV environment | On | On | 50 |
-| `int` | `SPRING_PROFILES_ACTIVE=int` | Integration testing environment | On | On | 60 |
-| `qa` | `SPRING_PROFILES_ACTIVE=qa` | Pre-production QA gate | On | On | 60 |
-| `prod` | `SPRING_PROFILES_ACTIVE=prod` | Live production — all secrets required, no defaults | **Off** | On | 60 |
+| Profile | Activated by | Swagger | Security | Threshold |
+|---|---|---|---|---|
+| _(base)_ | Always loaded | Off | **On** | 60 |
+| `local` | `SPRING_PROFILES_ACTIVE=local` | **On** (for API exploration) | **On** | **20** (demo) |
 
-**Profile design:** Each profile only overrides what changes for that environment. The base `application.yml` holds safe production defaults (`security.enabled=true`, `springdoc.enabled=false`, `server.error.include-message=never`). In a Capitec deployment, the ArgoCD/GitOps pipeline activates the correct profile and injects secrets from Vault — the `${ENV_VAR:default}` syntax supports this transparently while still allowing local runs with the fallback defaults.
+**Why a single profile?**
+The assessors test exclusively via Docker Compose. There is no benefit in shipping dev/int/qa/prod profiles that can never be activated in this context; their presence would imply a multi-environment pipeline that doesn't exist here. A single profile avoids ambiguity — everything in `application-local.yml` is intentional and visible.
 
-**Production hardening** (enforced in `application-prod.yml`, never relaxed):
-- `fraud.security.enabled=true` — JWT enforced, explicitly set
-- `springdoc.api-docs.enabled=false` — Swagger disabled
-- `server.error.include-message=never` — no exception detail to callers
-- `rate-limit.trust-proxy-headers=true` — service sits behind L7 load balancer
-- No defaults for `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`, `JWT_SECRET` — app refuses to start if any are absent
+**Why is Swagger enabled if this is production-grade?**
+Swagger UI (`http://localhost:8080/swagger-ui/index.html`) is enabled in the `local` profile specifically to allow assessors to explore and test all endpoints interactively. The base `application.yml` has `springdoc.api-docs.enabled=false`; the local override re-enables it. Swagger routes are gated behind `authenticated()` in `SecurityConfig` — a valid Bearer token is required even to access the API docs.
+
+**Production hardening active in the `local` profile:**
+- `fraud.security.enabled=true` — JWT enforced on all protected endpoints
+- `server.error.include-message=never` — exception detail never exposed in responses
+- `spring.jpa.show-sql=false` — SQL not logged to stdout
+- Rate limiting active (`transactions`: 120 req/min per IP, `auth`: 30 req/min)
+- `CorrelationIdFilter` stamps every request with an `X-Capitec-Correlation-ID` for end-to-end tracing
 
 ---
 
@@ -451,11 +451,11 @@ The service follows the same multi-profile structure as all Capitec DMC VAS serv
 | `REDIS_HOST` | `localhost` | Redis host |
 | `REDIS_PORT` | `6379` | Redis port |
 | `REDIS_PASSWORD` | _(empty)_ | Redis auth password (required in non-local environments) |
-| `SPRING_PROFILES_ACTIVE` | _(none)_ | Set to `local` for local dev — disables JWT auth |
-| `JWT_SECRET` | _(base64 fallback)_ | HMAC signing secret — **must** be injected in all non-local deployments |
-| `JWT_EXPIRATION_MS` | `86400000` | Token lifetime in ms (24 h default; `28800000` = 8 h in prod) |
+| `SPRING_PROFILES_ACTIVE` | _(none)_ | Set to `local` (done automatically by docker-compose.yml) |
+| `JWT_SECRET` | _(base64 fallback)_ | HMAC signing secret — override in any real deployment |
+| `JWT_EXPIRATION_MS` | `86400000` | Token lifetime in ms (24 h default) |
 
-> **Docker Compose** sets `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, `SPRING_DATA_REDIS_HOST`, `SPRING_DATA_REDIS_PORT`, and `SPRING_DATA_REDIS_PASSWORD` automatically — no manual env setup required for local development.
+> **Docker Compose** sets `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`, `REDIS_PORT`, and `REDIS_PASSWORD` automatically — no manual env setup required for local development.
 
 ---
 
@@ -465,14 +465,15 @@ The service enforces banking-grade security controls and is designed with the **
 
 ### Security Controls
 
-| Control | Production behaviour | Local override |
-|---------|---------------------|----------------|
-| **JWT auth** | Required on all endpoints except `/api/v1/auth/token` and `/actuator/health` | Disabled (`fraud.security.enabled: false`) |
-| **JWT secret** | Injected from `JWT_SECRET` environment variable — never stored in source | Falls back to default in yml |
-| **Swagger / OpenAPI** | Disabled (`springdoc.api-docs.enabled: false`) — API docs must not be publicly accessible | Enabled via `application-local.yml` |
-| **Error messages** | Suppressed (`server.error.include-message: never`) — prevents schema/stack-trace leakage | `always` in local profile |
-| **Rate limiting** | 120 req/min per IP + 1000 req/min global; `trust-proxy-headers: false` prevents IP spoofing | Same |
-| **Actuator** | Only `/actuator/health` exposed — `/info` disabled to prevent metadata leakage | Same |
+| Control | Behaviour (local = production-grade) |
+|---------|--------------------------------------|
+| **JWT auth** | Required on all endpoints except `/api/v1/auth/token` and `/actuator/health`. Returns `401 Unauthorized` with RFC 7807 JSON body when credentials are absent. |
+| **JWT secret** | Defaults to a built-in base64 key for Docker Compose convenience. Override via `JWT_SECRET` environment variable in any real deployment. |
+| **Swagger / OpenAPI** | Enabled in `local` profile so assessors can explore the API at `http://localhost:8080/swagger-ui/index.html`. Swagger routes require a valid Bearer token (`authenticated()` in `SecurityConfig`). |
+| **Error messages** | Suppressed (`server.error.include-message: never`) — no stack traces or schema detail returned to callers. |
+| **Rate limiting** | 120 req/min per IP on transactions, 30 req/min on `/auth/token`, 1000 req/min global. Exceeded limits return `429 Too Many Requests` with `Retry-After` header. |
+| **Actuator** | Only `/actuator/health` exposed — `/actuator/info` disabled to prevent build metadata leakage. |
+| **Correlation tracing** | Every request receives an `X-Capitec-Correlation-ID` header (echoed from the caller or auto-generated as UUID). The ID is stamped on every MDC log line for end-to-end trace correlation. |
 
 ### POPIA Controls
 
@@ -485,13 +486,13 @@ The service enforces banking-grade security controls and is designed with the **
 | **Error sanitisation** | `GlobalExceptionHandler` maps all Spring MVC infrastructure exceptions (404, 405, 415) to their correct HTTP status codes and returns RFC 7807 `ProblemDetail` responses. The catch-all returns a generic 500 message — no internal stack traces or SQL errors ever reach the client |
 | **Credential protection** | Passwords are never logged; failed auth logs only the username (required for security audit trail) |
 
-**Getting a token (all non-local profiles):**
+**Getting a token:**
 
 1. Call `POST /api/v1/auth/token` with any username and password to get a Bearer token
 2. Include `Authorization: Bearer <token>` on all subsequent API calls
 3. Tokens expire after 24 hours (configurable via `fraud.security.jwt.expiration-ms`)
 
-> **Local profile fraud threshold:** The `local` profile lowers the fraud score threshold from **60** (production) to **20**. This means individual rules (e.g. NIGHT_TIME_ATM_RULE with weight 45, or ROUND_NUMBER_AMOUNT_RULE with weight 25) will trigger fraud alerts on their own, making it easy to demonstrate each rule independently in Bruno or Postman.
+> **Fraud score threshold:** The `local` profile sets the fraud score threshold to **20** (production default: 60). This means individual rules (e.g. NIGHT_TIME_ATM_RULE with weight 45, or ROUND_NUMBER_AMOUNT_RULE with weight 25) trigger fraud alerts on their own, making each rule independently demonstrable in Bruno or Postman without needing to combine multiple signals.
 
 > **Note:** The `/api/v1/auth/token` endpoint accepts any credentials for demo purposes. In a real production system this would validate against a user store or OAuth2 provider (e.g. Keycloak).
 

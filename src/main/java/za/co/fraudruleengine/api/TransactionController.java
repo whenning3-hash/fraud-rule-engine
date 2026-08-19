@@ -5,9 +5,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import java.net.URI;
 import za.co.fraudruleengine.api.dto.TransactionRequest;
 import za.co.fraudruleengine.api.dto.TransactionResponse;
 import za.co.fraudruleengine.service.FraudEvaluationService;
@@ -64,7 +66,14 @@ public class TransactionController {
         TransactionEntity result = fraudEvaluationService.evaluate(request);
         log.debug("Transaction {} evaluated — fraudulent: {}, riskScore: {}",
                 result.getId(), result.isFraudulent(), result.getRiskScore());
-        return ResponseEntity.status(HttpStatus.CREATED).body(TransactionResponse.from(result));
+        // RFC 7231 §6.3.2: 201 Created SHOULD include a Location header pointing to the
+        // created resource so callers know where to fetch it without an extra round-trip.
+        URI location = ServletUriComponentsBuilder
+                .fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(result.getId())
+                .toUri();
+        return ResponseEntity.created(location).body(TransactionResponse.from(result));
     }
 
     /**
