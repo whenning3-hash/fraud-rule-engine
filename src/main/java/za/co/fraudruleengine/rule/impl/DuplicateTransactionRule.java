@@ -2,6 +2,7 @@ package za.co.fraudruleengine.rule.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import za.co.fraudruleengine.model.RuleName;
 import za.co.fraudruleengine.model.Transaction;
 import za.co.fraudruleengine.rule.FraudRule;
 import za.co.fraudruleengine.rule.RuleParameters;
@@ -35,7 +36,7 @@ import za.co.fraudruleengine.redis.VelocityStorePort;
 public class DuplicateTransactionRule implements FraudRule {
 
     /** Canonical rule name used as the join key with the {@code rule_configs} database row. */
-    public static final String RULE_NAME = "DUPLICATE_TRANSACTION_RULE";
+    public static final String RULE_NAME = RuleName.DUPLICATE_TRANSACTION_RULE.name();
 
     private final VelocityStorePort velocityStore;
 

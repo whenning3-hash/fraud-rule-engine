@@ -53,9 +53,6 @@ spring:
           min-idle: 4       # min idle connections to maintain
           max-wait: 1000ms  # max time to wait for a connection before throwing
 
-  cache:
-    type: simple
-
 server:
   port: 8080
   error:

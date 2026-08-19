@@ -2,6 +2,7 @@ package za.co.fraudruleengine.rule.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import za.co.fraudruleengine.model.RuleName;
 import za.co.fraudruleengine.model.Transaction;
 import za.co.fraudruleengine.rule.FraudRule;
 import za.co.fraudruleengine.rule.RuleParameters;
@@ -43,7 +44,7 @@ import java.util.Set;
 public class CountryMismatchRule implements FraudRule {
 
     /** Canonical rule name used as the join key with the {@code rule_configs} database row. */
-    public static final String RULE_NAME = "COUNTRY_MISMATCH_RULE";
+    public static final String RULE_NAME = RuleName.COUNTRY_MISMATCH_RULE.name();
 
     /**
      * Domain port for querying historical transaction data.

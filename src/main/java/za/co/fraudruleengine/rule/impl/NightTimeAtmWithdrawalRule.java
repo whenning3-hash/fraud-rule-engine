@@ -1,12 +1,16 @@
 package za.co.fraudruleengine.rule.impl;
 
 import org.springframework.stereotype.Component;
+import za.co.fraudruleengine.model.ChannelType;
+import za.co.fraudruleengine.model.RuleName;
 import za.co.fraudruleengine.model.Transaction;
 import za.co.fraudruleengine.rule.FraudRule;
+import za.co.fraudruleengine.rule.RuleEvaluationUtils;
 import za.co.fraudruleengine.rule.RuleParameters;
 import za.co.fraudruleengine.rule.RuleResult;
 
 import java.math.BigDecimal;
+import java.util.EnumSet;
 import java.util.Set;
 
 /**
@@ -31,17 +35,20 @@ import java.util.Set;
  *   <li>{@code minAmount}  — minimum transaction amount that triggers the rule (default {@code "1500.00"})</li>
  * </ul>
  *
- * <p>Eligible channels are {@code ATM} and {@code POS} (point-of-sale cash-back), represented as
- * the channel string stored on the {@link Transaction} domain model.
+ * <p>Eligible channels are {@link ChannelType#ATM} and {@link ChannelType#POS} (point-of-sale
+ * cash-back), resolved from the raw channel string via {@link ChannelType#fromString(String)}.
  */
 @Component
 public class NightTimeAtmWithdrawalRule implements FraudRule {
 
-    /** Canonical rule name used as the join key with the {@code rule_configs} database row. */
-    public static final String RULE_NAME = "NIGHT_TIME_ATM_RULE";
+    /**
+     * Canonical rule name used as the join key with the {@code rule_configs} database row.
+     * Sourced from {@link RuleName} to eliminate duplicated string literals.
+     */
+    public static final String RULE_NAME = RuleName.NIGHT_TIME_ATM_RULE.name();
 
     /** Channels that represent physical card-present cash access points. */
-    private static final Set<String> CASH_CHANNELS = Set.of("ATM", "POS");
+    private static final Set<ChannelType> CASH_CHANNELS = EnumSet.of(ChannelType.ATM, ChannelType.POS);
 
     @Override
     public String getRuleName() {
@@ -52,7 +59,7 @@ public class NightTimeAtmWithdrawalRule implements FraudRule {
      * Evaluates whether all three conditions are simultaneously true:
      * <ol>
      *   <li>The transaction was submitted during the configured off-hours window.</li>
-     *   <li>The channel is a physical cash-access point (ATM or POS).</li>
+     *   <li>The channel is a physical cash-access point ({@code ATM} or {@code POS}).</li>
      *   <li>The amount meets or exceeds the configured minimum threshold.</li>
      * </ol>
      *
@@ -64,19 +71,16 @@ public class NightTimeAtmWithdrawalRule implements FraudRule {
      */
     @Override
     public RuleResult evaluate(Transaction transaction, RuleParameters parameters) {
-        int startHour = parameters.getInt("startHour", 0);
-        int endHour   = parameters.getInt("endHour",   5);
         BigDecimal minAmount = parameters.getBigDecimal("minAmount", new BigDecimal("1500.00"));
 
-        int hour = transaction.transactionTime().getHour();
-
-        // All three conditions must hold for the rule to fire
-        boolean isOffHours  = hour >= startHour && hour < endHour;
-        boolean isCashChannel = CASH_CHANNELS.contains(transaction.channel().toUpperCase());
+        // Off-hours check delegated to shared utility to avoid duplication with OffHoursRule
+        boolean isOffHours    = RuleEvaluationUtils.isOffHours(transaction, parameters);
+        boolean isCashChannel = CASH_CHANNELS.contains(ChannelType.fromString(transaction.channel()));
         boolean isHighAmount  = transaction.amount().compareTo(minAmount) >= 0;
 
         boolean matched = isOffHours && isCashChannel && isHighAmount;
 
+        int hour = transaction.transactionTime().getHour();
         String description = matched
                 ? String.format("Night-time ATM/POS withdrawal detected — hour: %02d:00, channel: %s, amount: %s %s",
                         hour, transaction.channel(), transaction.amount(), transaction.currency())

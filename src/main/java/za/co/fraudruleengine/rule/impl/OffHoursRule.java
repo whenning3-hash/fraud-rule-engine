@@ -1,8 +1,10 @@
 package za.co.fraudruleengine.rule.impl;
 
 import org.springframework.stereotype.Component;
+import za.co.fraudruleengine.model.RuleName;
 import za.co.fraudruleengine.model.Transaction;
 import za.co.fraudruleengine.rule.FraudRule;
+import za.co.fraudruleengine.rule.RuleEvaluationUtils;
 import za.co.fraudruleengine.rule.RuleParameters;
 import za.co.fraudruleengine.rule.RuleResult;
 
@@ -31,8 +33,11 @@ import za.co.fraudruleengine.rule.RuleResult;
 @Component
 public class OffHoursRule implements FraudRule {
 
-    /** Canonical rule name used as the join key with the {@code rule_configs} database row. */
-    public static final String RULE_NAME = "OFF_HOURS_RULE";
+    /**
+     * Canonical rule name used as the join key with the {@code rule_configs} database row.
+     * Sourced from {@link RuleName} to eliminate duplicated string literals.
+     */
+    public static final String RULE_NAME = RuleName.OFF_HOURS_RULE.name();
 
     @Override
     public String getRuleName() {
@@ -50,16 +55,15 @@ public class OffHoursRule implements FraudRule {
      */
     @Override
     public RuleResult evaluate(Transaction transaction, RuleParameters parameters) {
-        int suspiciousStartHour = parameters.getInt("startHour", 0);
-        int suspiciousEndHour = parameters.getInt("endHour", 5);
-        int transactionHour = transaction.transactionTime().getHour();
+        boolean matched = RuleEvaluationUtils.isOffHours(transaction, parameters);
 
-        // Half-open interval: startHour is inclusive, endHour is exclusive
-        boolean matched = transactionHour >= suspiciousStartHour && transactionHour < suspiciousEndHour;
+        int transactionHour = transaction.transactionTime().getHour();
+        int startHour       = parameters.getInt("startHour", 0);
+        int endHour         = parameters.getInt("endHour",   5);
 
         String description = matched
                 ? String.format("Transaction occurred at %02d:xx, within off-hours window (%02d:00–%02d:00)",
-                        transactionHour, suspiciousStartHour, suspiciousEndHour)
+                        transactionHour, startHour, endHour)
                 : String.format("Transaction occurred at %02d:xx, outside off-hours window", transactionHour);
 
         return new RuleResult(RULE_NAME, matched, matched ? parameters.riskWeight() : 0, description);

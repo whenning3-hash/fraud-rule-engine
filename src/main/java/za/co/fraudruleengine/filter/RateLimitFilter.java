@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * </ol>
  *
  * <p>When a limit is exceeded the filter returns {@code 429 Too Many Requests} with a
- * {@code Retry-After} header (fixed at 60 seconds) and a JSON error body — rather than
+ * {@code Retry-After} header (derived from {@code WINDOW_MS / 1000}) and a JSON error body — rather than
  * propagating the request to the application layer and wasting resources.
  *
  * <p><b>Algorithm</b>: fixed-window counter per 60-second period.  The window resets at the
@@ -47,6 +47,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     /** Window length in milliseconds (1 minute). */
     private static final long WINDOW_MS = 60_000L;
+
+    /** Window length in seconds — used as the value of the {@code Retry-After} response header. */
+    private static final String WINDOW_SECONDS = String.valueOf(WINDOW_MS / 1000);
 
     /** Endpoint path on which the per-IP transaction limit is enforced. */
     private static final String TRANSACTION_PATH = "/api/v1/transactions";
@@ -125,7 +128,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (globalEnabled && isGlobalLimitExceeded()) {
             log.warn("rate-limit: global limit ({} req/min) exceeded — rejected {} {}",
                     globalLimit, request.getMethod(), request.getRequestURI());
-            sendTooManyRequests(response, "Global rate limit exceeded — please retry after 60 seconds.");
+            sendTooManyRequests(response, "Global rate limit exceeded — please retry after " + WINDOW_SECONDS + " seconds.");
             return;
         }
 
@@ -145,7 +148,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                         perIpLimit, clientIp, TRANSACTION_PATH);
                 sendTooManyRequests(response,
                         "Per-client rate limit exceeded — maximum " + perIpLimit
-                        + " transaction evaluations per minute. Retry after 60 seconds.");
+                        + " transaction evaluations per minute. Retry after " + WINDOW_SECONDS + " seconds.");
                 return;
             }
         }
@@ -161,7 +164,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                         authLimit, clientIp);
                 sendTooManyRequests(response,
                         "Authentication rate limit exceeded — maximum " + authLimit
-                        + " attempts per minute. Retry after 60 seconds.");
+                        + " attempts per minute. Retry after " + WINDOW_SECONDS + " seconds.");
                 return;
             }
         }
@@ -194,17 +197,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
      * @param clientIp resolved client IP address
      */
     private boolean isPerIpLimitExceeded(String clientIp) {
-        long now = System.currentTimeMillis();
-        long[] slot = perIpCounters.computeIfAbsent(clientIp, k -> new long[]{now, 0});
-        synchronized (slot) {
-            if (now - slot[0] >= WINDOW_MS) {
-                slot[0] = now;
-                slot[1] = 1;
-                return false;
-            }
-            slot[1]++;
-            return slot[1] > perIpLimit;
-        }
+        return isLimitExceeded(perIpCounters, clientIp, perIpLimit);
     }
 
     /**
@@ -217,8 +210,25 @@ public class RateLimitFilter extends OncePerRequestFilter {
      * @param clientIp resolved client IP address
      */
     private boolean isAuthLimitExceeded(String clientIp) {
+        return isLimitExceeded(perIpAuthCounters, clientIp, authLimit);
+    }
+
+    /**
+     * Core fixed-window counter logic shared by the per-IP transaction and auth limits.
+     *
+     * <p>Each entry in {@code counters} is a {@code long[2]} where {@code [0]} holds the window
+     * start timestamp and {@code [1]} holds the request count. When the current time has advanced
+     * past the window boundary the counter is reset to {@code 1} and the call is allowed through.
+     *
+     * @param counters the counter map keyed by client IP
+     * @param clientIp the resolved client IP address used as the map key
+     * @param limit    the maximum number of requests allowed within the window
+     * @return {@code true} when the request count exceeds {@code limit}; {@code false} otherwise
+     */
+    private boolean isLimitExceeded(ConcurrentHashMap<String, long[]> counters,
+                                    String clientIp, int limit) {
         long now = System.currentTimeMillis();
-        long[] slot = perIpAuthCounters.computeIfAbsent(clientIp, k -> new long[]{now, 0});
+        long[] slot = counters.computeIfAbsent(clientIp, k -> new long[]{now, 0});
         synchronized (slot) {
             if (now - slot[0] >= WINDOW_MS) {
                 slot[0] = now;
@@ -226,7 +236,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 return false;
             }
             slot[1]++;
-            return slot[1] > authLimit;
+            return slot[1] > limit;
         }
     }
 
@@ -265,7 +275,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             throws IOException {
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setHeader("Retry-After", "60");
+        response.setHeader("Retry-After", WINDOW_SECONDS);
         response.getWriter().write(
                 "{\"status\":429,\"error\":\"Too Many Requests\",\"message\":\""
                 + message + "\"}");

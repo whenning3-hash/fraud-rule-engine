@@ -87,10 +87,9 @@ public class RuleController {
             @Valid @RequestBody RuleConfigUpdateRequest request) {
         log.info("Rule config update — id: {}, enabled: {}, riskWeight: {}",
                 id, request.enabled(), request.riskWeight());
+        // RuleConfigService.update() logs the full before → after state for the audit trail.
         RuleConfigResponse updated = RuleConfigResponse.from(
                 ruleConfigService.update(id, request.enabled(), request.riskWeight(), request.parameters()));
-        log.info("Rule {} ({}) updated — enabled: {}, riskWeight: {}",
-                id, updated.ruleName(), updated.enabled(), updated.riskWeight());
         return ResponseEntity.ok(updated);
     }
 }

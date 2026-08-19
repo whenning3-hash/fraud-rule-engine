@@ -1,6 +1,7 @@
 package za.co.fraudruleengine.rule.impl;
 
 import org.springframework.stereotype.Component;
+import za.co.fraudruleengine.model.RuleName;
 import za.co.fraudruleengine.model.Transaction;
 import za.co.fraudruleengine.rule.FraudRule;
 import za.co.fraudruleengine.rule.RuleParameters;
@@ -36,7 +37,7 @@ import java.math.BigDecimal;
 public class RoundNumberAmountRule implements FraudRule {
 
     /** Canonical rule name used as the join key with the {@code rule_configs} database row. */
-    public static final String RULE_NAME = "ROUND_NUMBER_AMOUNT_RULE";
+    public static final String RULE_NAME = RuleName.ROUND_NUMBER_AMOUNT_RULE.name();
 
     @Override
     public String getRuleName() {

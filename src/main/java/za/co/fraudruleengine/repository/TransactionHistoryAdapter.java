@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import za.co.fraudruleengine.rule.TransactionHistoryPort;
-import za.co.fraudruleengine.repository.TransactionJpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.Set;

@@ -100,8 +100,8 @@ public class AlertController {
             @PathVariable UUID id,
             @Valid @RequestBody AlertStatusUpdateRequest request) {
         log.info("Alert status update requested — id: {}, newStatus: {}", id, request.status());
+        // AlertQueryService.updateStatus() logs the before/after state transition for the audit trail.
         AlertResponse updated = AlertResponse.from(alertQueryService.updateStatus(id, request.status()));
-        log.info("Alert {} status updated to {}", id, request.status());
         return ResponseEntity.ok(updated);
     }
 }

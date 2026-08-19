@@ -74,7 +74,9 @@ public class FraudEvaluationService {
     @Transactional
     public TransactionEntity evaluate(TransactionRequest request) {
         TransactionEntity entity = mapToEntity(request);
-        transactionRepository.save(entity);
+        // Capture return value: JPA save() may return a managed proxy that differs from the
+        // passed instance (e.g. if an ID-generation strategy or entity listener modifies it).
+        entity = transactionRepository.save(entity);
 
         Transaction transaction = mapToDomain(entity);
         EvaluationResult result = ruleEngine.evaluate(transaction);

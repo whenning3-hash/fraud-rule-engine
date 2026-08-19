@@ -2,6 +2,7 @@ package za.co.fraudruleengine.rule.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import za.co.fraudruleengine.model.RuleName;
 import za.co.fraudruleengine.model.Transaction;
 import za.co.fraudruleengine.rule.FraudRule;
 import za.co.fraudruleengine.rule.RuleParameters;
@@ -38,7 +39,7 @@ import za.co.fraudruleengine.rule.TransactionHistoryPort;
 public class UnusualMerchantCategoryRule implements FraudRule {
 
     /** Canonical rule name used as the join key with the {@code rule_configs} database row. */
-    public static final String RULE_NAME = "UNUSUAL_MERCHANT_CATEGORY_RULE";
+    public static final String RULE_NAME = RuleName.UNUSUAL_MERCHANT_CATEGORY_RULE.name();
 
     /**
      * Domain port for querying historical transaction data.
