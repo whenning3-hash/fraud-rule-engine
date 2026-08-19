@@ -147,41 +147,45 @@ Bruno is the industry-standard API testing tool used at Capitec. The Bruno colle
 **Test sequence for a full fraud scenario:**
 ```
 ── Authentication ─────────────────────────────────────────────────────────────
- 1. Authentication > Get Token               → bearerToken auto-saved
+ 1. Authentication > Get Token                     → bearerToken auto-saved
 
 ── Baseline rules ─────────────────────────────────────────────────────────────
- 2. Transactions   > Submit High Amount      → AMOUNT_THRESHOLD_RULE fires (+40), fraudulent=true
- 3. Transactions   > Submit Off-Hours        → OFF_HOURS_RULE fires (+20), fraudulent=true
- 4. Transactions   > Submit Multi-Rule Breach→ AMOUNT+OFF_HOURS+ROUND fires, riskScore≥85, fraudulent=true
+ 2. Transactions   > Submit High Amount             → AMOUNT_THRESHOLD_RULE fires (+40), fraudulent=true
+ 3. Transactions   > Submit Off-Hours               → OFF_HOURS_RULE fires (+20), fraudulent=true
+ 4. Transactions   > Submit Multi-Rule Breach       → AMOUNT+OFF_HOURS+ROUND fires, riskScore≥85, fraudulent=true
 
 ── Capitec-realistic rules ────────────────────────────────────────────────────
- 5. Transactions   > Submit Night-Time ATM   → NIGHT_TIME_ATM_RULE fires (+45), fraudulent=true
- 6. Transactions   > Submit Round-Number     → ROUND_NUMBER_AMOUNT_RULE fires (+25), fraudulent=true
- 7. Transactions   > Submit Country Baseline ZAF → Establishes ZAF history for ACC-007 (clean, score=15)
- 8. Transactions   > Submit Country Mismatch    → COUNTRY_MISMATCH_RULE fires (+50), fraudulent=true
- 9. Transactions   > Submit Unusual Category → UNUSUAL_MERCHANT_CATEGORY_RULE fires (+15, signal only)
+ 5. Transactions   > Submit Night-Time ATM          → NIGHT_TIME_ATM_RULE fires (+45) via ATM channel
+ 6. Transactions   > Submit POS Night-Time          → NIGHT_TIME_ATM_RULE fires (+45) via POS channel
+                                                       (confirms POS is in CASH_CHANNELS)
+ 7. Transactions   > Submit Round-Number            → ROUND_NUMBER_AMOUNT_RULE fires (+25), fraudulent=true
+ 8. Transactions   > Submit Country Baseline ZAF   → Establishes ZAF history for ACC-007 (clean, score=15)
+ 9. Transactions   > Submit Country Mismatch        → COUNTRY_MISMATCH_RULE fires (+50), fraudulent=true
+10. Transactions   > Submit Unusual Category        → UNUSUAL_MERCHANT_CATEGORY_RULE fires (+15, signal only)
+11. Transactions   > Submit Clean Transaction       → fraudulent=false, no alert created
+12. Transactions   > Submit Online Night (Negative) → NIGHT_TIME_ATM_RULE must NOT fire for ONLINE channel
+                                                       (riskScore < 45 confirms channel isolation working)
 
 ── Alerts ─────────────────────────────────────────────────────────────────────
-10. Fraud Alerts   > List All Alerts         → all fraudulent transactions visible; alertId auto-saved
-11. Fraud Alerts   > Get Alert By ID         → see matchedRules array + ruleDetails JSON
-12. Fraud Alerts   > Update Status (REVIEWED → CLOSED)
+13. Fraud Alerts   > List All Alerts                → all fraudulent transactions visible; alertId auto-saved
+14. Fraud Alerts   > Get Alert By ID                → see matchedRules array + ruleDetails JSON
+15. Fraud Alerts   > Update Status (REVIEWED → CLOSED)
 
 ── Rule management ────────────────────────────────────────────────────────────
-13. Rule Config    > List All Rules          → all 8 rules, IDs, weights, parameters
-14. Rule Config    > Update Velocity Rule    → live weight/threshold change, no restart
-15. Rule Config    > Disable Off-Hours Rule  → test that disabled rule no longer fires
-16. Rule Config    > Re-enable Off-Hours Rule
+16. Rule Config    > List All Rules                 → all 8 rules, IDs, weights, parameters
+17. Rule Config    > Update Velocity Rule           → live weight/threshold change, no restart
+18. Rule Config    > Disable Off-Hours Rule         → test that disabled rule no longer fires
+19. Rule Config    > Re-enable Off-Hours Rule
 
-── Verification ───────────────────────────────────────────────────────────────
-17. Transactions   > Submit Clean Transaction→ fraudulent=false, no alert created
-18. Health         > Health Check            → {"status":"UP"}
+── Health ─────────────────────────────────────────────────────────────────────
+20. Health         > Health Check                   → {"status":"UP"}
 
 ── Performance / SLA ──────────────────────────────────────────────────────────
-19. Performance    > SLA-Health-Check        → response time < 100ms
-20. Performance    > SLA-Authentication      → response time < 500ms
-21. Performance    > SLA-Submit-Transaction  → response time < 500ms; 429 if rate limited
-22. Performance    > SLA-List-Rules          → response time < 300ms
-23. Performance    > SLA-List-Alerts         → response time < 300ms
+21. Performance    > SLA-Health-Check               → response time < 100ms
+22. Performance    > SLA-Authentication             → response time < 500ms
+23. Performance    > SLA-Submit-Transaction         → response time < 500ms; 429 if rate limited
+24. Performance    > SLA-List-Rules                 → response time < 300ms
+25. Performance    > SLA-List-Alerts                → response time < 300ms
 ```
 
 **Run a Bruno load test (Bruno CLI):**
@@ -259,11 +263,11 @@ mvn test
 mvn verify
 ```
 
-**164 unit tests**, **43 integration tests** — 207 total.
+**169 unit tests**, **54 integration tests** — 223 total, 0 failures.
 
-Unit tests (`src/test/java/.../unit/`) — pure JUnit 5 + Mockito, no Spring context, sub-second execution. Covers all 8 fraud rules, the rate-limit filter, the JWT provider, repository adapters, the `LogMaskUtil` POPIA masking utility, the `RuleEvaluationUtils` shared utility, and both new enums (`RuleName`, `ChannelType`). Each rule has positive, negative, boundary-condition, and rule-name identity tests. `RuleNameTest` explicitly asserts that every enum constant's `.name()` matches the corresponding rule class constant — a compile-level guard against DB key drift.
+Unit tests (`src/test/java/.../unit/`) — pure JUnit 5 + Mockito, no Spring context, sub-second execution. Covers all 8 fraud rules, the rate-limit filter, the JWT provider, repository adapters, the `LogMaskUtil` POPIA masking utility, the `RuleEvaluationUtils` shared utility, both enums (`RuleName`, `ChannelType`), and the `GlobalExceptionHandler` (each HTTP status code variant). Each rule has positive, negative, boundary-condition, and rule-name identity tests. `RuleNameTest` explicitly asserts that every enum constant's `.name()` matches the corresponding rule class constant — a compile-level guard against DB key drift.
 
-Integration tests (`*IntegrationTest`) use Testcontainers to start real PostgreSQL and Redis containers automatically. Docker must be running. Includes `LoadPerformanceIntegrationTest` which validates:
+Integration tests (`*IntegrationTest`) use Testcontainers to start real PostgreSQL and Redis containers automatically. Docker must be running. Covers full end-to-end fraud evaluation for all 8 rules (positive and negative), alert lifecycle state transitions, rule configuration live updates, HTTP error handling (400/404/405/415), and ChannelType isolation (POS fires NIGHT_TIME_ATM, ONLINE does not). Includes `LoadPerformanceIntegrationTest` which validates:
 - 20 concurrent requests complete within a 10-second wall-clock budget (virtual threads)
 - High-risk and low-risk transactions are scored independently with no state bleed-through
 - Rate-limit filter returns `429 Too Many Requests` when the per-IP threshold is exceeded
@@ -413,18 +417,45 @@ created_at                alert_id (FK)
 
 ---
 
+## Spring Profiles
+
+The service follows the same multi-profile structure as all Capitec DMC VAS services. Only the `local` profile is used for this assessment — the remaining profiles are deployment-ready for real environments.
+
+| Profile | Activated by | Purpose | Swagger | Security | Threshold |
+|---|---|---|---|---|---|
+| _(none)_ | Default | Base config only — connection details via env vars | Off | On | 60 |
+| `local` | `SPRING_PROFILES_ACTIVE=local` | Docker Compose / local dev — security disabled for easy testing | On | **Off** | **20** |
+| `dev` | `SPRING_PROFILES_ACTIVE=dev` | Shared DEV environment | On | On | 50 |
+| `int` | `SPRING_PROFILES_ACTIVE=int` | Integration testing environment | On | On | 60 |
+| `qa` | `SPRING_PROFILES_ACTIVE=qa` | Pre-production QA gate | On | On | 60 |
+| `prod` | `SPRING_PROFILES_ACTIVE=prod` | Live production — all secrets required, no defaults | **Off** | On | 60 |
+
+**Profile design:** Each profile only overrides what changes for that environment. The base `application.yml` holds safe production defaults (`security.enabled=true`, `springdoc.enabled=false`, `server.error.include-message=never`). In a Capitec deployment, the ArgoCD/GitOps pipeline activates the correct profile and injects secrets from Vault — the `${ENV_VAR:default}` syntax supports this transparently while still allowing local runs with the fallback defaults.
+
+**Production hardening** (enforced in `application-prod.yml`, never relaxed):
+- `fraud.security.enabled=true` — JWT enforced, explicitly set
+- `springdoc.api-docs.enabled=false` — Swagger disabled
+- `server.error.include-message=never` — no exception detail to callers
+- `rate-limit.trust-proxy-headers=true` — service sits behind L7 load balancer
+- No defaults for `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`, `JWT_SECRET` — app refuses to start if any are absent
+
+---
+
 ## Environment Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/frauddb` | PostgreSQL connection URL |
-| `SPRING_DATASOURCE_USERNAME` | `frauduser` | Database username |
-| `SPRING_DATASOURCE_PASSWORD` | `fraudpass` | Database password |
-| `SPRING_DATA_REDIS_HOST` | `localhost` | Redis host |
-| `SPRING_DATA_REDIS_PORT` | `6379` | Redis port |
-| `SPRING_PROFILES_ACTIVE` | _(none)_ | Set to `local` to disable JWT auth |
-| `FRAUD_SCORE_THRESHOLD` | `60` | Minimum score to create a FraudAlert |
-| `JWT_SECRET` | _(fallback in yml — override in prod)_ | Base64-encoded HS256 signing secret — **must** be set via env var in every non-local deployment |
+| `DB_URL` | `jdbc:postgresql://localhost:5432/frauddb` | PostgreSQL JDBC connection URL |
+| `DB_USERNAME` | `frauduser` | Database username |
+| `DB_PASSWORD` | `fraudpass` | Database password |
+| `REDIS_HOST` | `localhost` | Redis host |
+| `REDIS_PORT` | `6379` | Redis port |
+| `REDIS_PASSWORD` | _(empty)_ | Redis auth password (required in non-local environments) |
+| `SPRING_PROFILES_ACTIVE` | _(none)_ | Set to `local` for local dev — disables JWT auth |
+| `JWT_SECRET` | _(base64 fallback)_ | HMAC signing secret — **must** be injected in all non-local deployments |
+| `JWT_EXPIRATION_MS` | `86400000` | Token lifetime in ms (24 h default; `28800000` = 8 h in prod) |
+
+> **Docker Compose** sets `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, `SPRING_DATA_REDIS_HOST`, `SPRING_DATA_REDIS_PORT`, and `SPRING_DATA_REDIS_PASSWORD` automatically — no manual env setup required for local development.
 
 ---
 
@@ -451,7 +482,7 @@ The service enforces banking-grade security controls and is designed with the **
 | **Data minimisation** | API responses return only fields required for fraud investigation; no unnecessary personal data is collected or stored |
 | **Data retention** | Configurable via `fraud.retention.transactions-days` (365) and `fraud.retention.fraud-alerts-days` (2555 / 7 years for regulatory hold). Cleanup jobs enforce these limits in the production pipeline |
 | **Access control** | All data endpoints require a valid JWT; unauthenticated requests are rejected with HTTP 401 |
-| **Error sanitisation** | The `GlobalExceptionHandler` catch-all returns a generic message — internal stack traces and SQL errors never reach the client |
+| **Error sanitisation** | `GlobalExceptionHandler` maps all Spring MVC infrastructure exceptions (404, 405, 415) to their correct HTTP status codes and returns RFC 7807 `ProblemDetail` responses. The catch-all returns a generic 500 message — no internal stack traces or SQL errors ever reach the client |
 | **Credential protection** | Passwords are never logged; failed auth logs only the username (required for security audit trail) |
 
 **Getting a token (all non-local profiles):**
