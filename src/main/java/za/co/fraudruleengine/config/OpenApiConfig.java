@@ -8,6 +8,25 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * SpringDoc / Swagger configuration for the Fraud Rule Engine API.
+ *
+ * <p>Registers a global {@code Bearer Authentication} security scheme so that the Swagger UI
+ * presents an "Authorize" button that pre-populates the {@code Authorization: Bearer <token>}
+ * header on all requests. This eliminates the need for testers to manually add the header to
+ * every endpoint they try.
+ *
+ * <p>The security scheme name is defined once in {@link #SECURITY_SCHEME_NAME} and referenced
+ * from both {@code addSecurityItem} (applies the scheme globally) and
+ * {@code addSecuritySchemes} (defines the scheme — name must match exactly). Using a constant
+ * ensures the two call sites can never drift out of sync.
+ *
+ * <p>The generated API documentation is available at:
+ * <ul>
+ *   <li>Swagger UI: {@code /swagger-ui/index.html}</li>
+ *   <li>OpenAPI JSON: {@code /api-docs}</li>
+ * </ul>
+ */
 @Configuration
 public class OpenApiConfig {
 

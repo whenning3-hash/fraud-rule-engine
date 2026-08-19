@@ -857,7 +857,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accountId\": \"ACC-006\",\n  \"amount\": 10000.0,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Cash Deposit\",\n  \"merchantCategory\": \"BANKING\",\n  \"channel\": \"BRANCH\",\n  \"countryCode\": \"ZAF\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
+              "raw": "{\n  \"accountId\": \"ACC-006\",\n  \"amount\": 10000.0,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Cash Deposit\",\n  \"merchantCategory\": \"BANKING\",\n  \"channel\": \"MOBILE\",\n  \"countryCode\": \"ZAF\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -924,7 +924,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accountId\": \"ACC-007\",\n  \"amount\": 800.0,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Woolworths Cape Town\",\n  \"merchantCategory\": \"RETAIL\",\n  \"channel\": \"CARD_PRESENT\",\n  \"countryCode\": \"ZAF\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
+              "raw": "{\n  \"accountId\": \"ACC-007\",\n  \"amount\": 800.0,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Woolworths Cape Town\",\n  \"merchantCategory\": \"RETAIL\",\n  \"channel\": \"POS\",\n  \"countryCode\": \"ZAF\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1060,7 +1060,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"accountId\": \"ACC-008\",\n  \"amount\": 3000.0,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Rand Merchant Bank FOREX\",\n  \"merchantCategory\": \"FOREX\",\n  \"channel\": \"BRANCH\",\n  \"countryCode\": \"ZAF\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
+              "raw": "{\n  \"accountId\": \"ACC-008\",\n  \"amount\": 3000.0,\n  \"currency\": \"ZAR\",\n  \"merchantName\": \"Rand Merchant Bank FOREX\",\n  \"merchantCategory\": \"FOREX\",\n  \"channel\": \"MOBILE\",\n  \"countryCode\": \"ZAF\",\n  \"transactionTime\": \"{{txTimestamp}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
