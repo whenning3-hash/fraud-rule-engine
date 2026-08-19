@@ -2,25 +2,28 @@
 # Integration (INT) Environment Profile
 #
 # Activated by: SPRING_PROFILES_ACTIVE=int
-# Purpose: Stable integration environment used by QA automation and cross-team
-#          integration testing. Services are deployed against shared INT databases
-#          and message brokers.
+#
+# Purpose: Stable integration environment for QA automation and cross-team
+#          integration testing. In a Capitec deployment, the ArgoCD / GitOps
+#          pipeline overrides the default endpoints below with the actual INT
+#          infrastructure URLs and injects secrets from Vault.
+#
+# Running locally: This profile is NOT used for local development — use the
+#          `local` profile with Docker Compose instead.
 #
 # Key differences from production:
-#   - Swagger UI enabled — QA automation teams and integration partners need API docs
-#   - INFO logging — enough detail to diagnose failing integration test scenarios
-#
-# All secrets MUST be injected via the deployment pipeline.
+#   - Swagger UI enabled: QA automation teams and integration partners need API docs.
+#   - INFO logging: enough detail to diagnose failing integration test scenarios.
 ################################################################################
 
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://fraud-rule-engine-db-int:5432/frauddb}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/frauddb}
+    username: ${DB_USERNAME:frauduser}
+    password: ${DB_PASSWORD:fraudpass}
   data:
     redis:
-      host: ${REDIS_HOST:fraud-rule-engine-redis-int}
+      host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
 fraud:
@@ -28,7 +31,7 @@ fraud:
     threshold: 60
   security:
     jwt:
-      secret: ${JWT_SECRET}
+      secret: ${JWT_SECRET:dGhpcy1pcy1hLXZlcnktc2VjdXJlLXNlY3JldC1rZXktZm9yLWZyYXVkLXJ1bGUtZW5naW5lLWFwcA==}
       expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
 springdoc:

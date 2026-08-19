@@ -2,29 +2,33 @@
 # Quality Assurance (QA) Environment Profile
 #
 # Activated by: SPRING_PROFILES_ACTIVE=qa
-# Purpose: Final pre-production validation environment. All changes must pass
-#          QA sign-off before being promoted to production. QA runs the full
-#          regression suite, penetration tests, and performance benchmarks.
+#
+# Purpose: Final pre-production validation gate. All changes must pass QA
+#          sign-off before promotion to production. QA runs the full regression
+#          suite, penetration tests, and performance benchmarks.
+#          In a Capitec deployment, the ArgoCD / GitOps pipeline overrides the
+#          default endpoints below with the actual QA infrastructure URLs and
+#          injects secrets from Vault.
+#
+# Running locally: This profile is NOT used for local development — use the
+#          `local` profile with Docker Compose instead.
 #
 # Key differences from production:
-#   - Swagger UI enabled — QA team performs exploratory and contract testing
-#   - WARN logging — reduces log noise during high-volume regression runs while
-#     still capturing warnings and errors for investigation
+#   - Swagger UI enabled: QA team performs exploratory and contract testing.
+#   - WARN logging: reduces log noise during high-volume regression runs while
+#     retaining warnings and errors for investigation.
 #
-# Security posture identical to production: JWT enforced, Swagger read-only
-# exposure is acceptable as QA runs in an isolated network segment.
-#
-# All secrets MUST be injected via the deployment pipeline.
+# Security posture is identical to production: JWT enforced on all endpoints.
 ################################################################################
 
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://fraud-rule-engine-db-qa:5432/frauddb}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/frauddb}
+    username: ${DB_USERNAME:frauduser}
+    password: ${DB_PASSWORD:fraudpass}
   data:
     redis:
-      host: ${REDIS_HOST:fraud-rule-engine-redis-qa}
+      host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
 fraud:
@@ -32,7 +36,7 @@ fraud:
     threshold: 60
   security:
     jwt:
-      secret: ${JWT_SECRET}
+      secret: ${JWT_SECRET:dGhpcy1pcy1hLXZlcnktc2VjdXJlLXNlY3JldC1rZXktZm9yLWZyYXVkLXJ1bGUtZW5naW5lLWFwcA==}
       expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
 springdoc:
