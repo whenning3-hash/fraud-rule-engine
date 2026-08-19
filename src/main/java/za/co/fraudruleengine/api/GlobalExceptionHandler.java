@@ -4,10 +4,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -110,6 +113,66 @@ public class GlobalExceptionHandler {
         log.debug("Validation failed: {}", errors);
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, errors);
         detail.setTitle("Validation Failed");
+        return detail;
+    }
+
+    /**
+     * Maps Spring's {@link NoResourceFoundException} to HTTP 404 Not Found.
+     *
+     * <p>Spring 6.1+ throws this exception when the {@code DispatcherServlet} cannot find a
+     * matching route or static resource for the request URI. Without an explicit handler here,
+     * the catch-all {@code Exception} handler would intercept it and incorrectly return 500.
+     *
+     * @param ex the exception thrown when no handler or resource is found for the request path
+     * @return a {@link ProblemDetail} with status 404
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ProblemDetail handleNoResourceFound(NoResourceFoundException ex) {
+        log.debug("No handler found for request: {}", ex.getMessage());
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.NOT_FOUND, "The requested endpoint does not exist");
+        detail.setTitle("Not Found");
+        return detail;
+    }
+
+    /**
+     * Maps {@link HttpRequestMethodNotSupportedException} to HTTP 405 Method Not Allowed.
+     *
+     * <p>Thrown when the correct path is matched but the HTTP method is wrong — for example,
+     * a {@code GET} request against a {@code POST}-only endpoint. Without an explicit handler,
+     * the catch-all would return 500.
+     *
+     * @param ex the exception carrying the unsupported method and the list of allowed methods
+     * @return a {@link ProblemDetail} with status 405 and the offending method name
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ProblemDetail handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        log.debug("HTTP method not supported: {}", ex.getMessage());
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.METHOD_NOT_ALLOWED,
+                "HTTP method '" + ex.getMethod() + "' is not supported for this endpoint");
+        detail.setTitle("Method Not Allowed");
+        return detail;
+    }
+
+    /**
+     * Maps {@link HttpMediaTypeNotSupportedException} to HTTP 415 Unsupported Media Type.
+     *
+     * <p>Thrown when the client supplies a {@code Content-Type} that no endpoint can consume —
+     * for example, {@code text/plain} instead of {@code application/json}. Without an explicit
+     * handler, the catch-all would return 500.
+     *
+     * @param ex the exception carrying the unsupported content type
+     * @return a {@link ProblemDetail} with status 415 and the offending content type
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ProblemDetail handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        log.debug("Media type not supported: {}", ex.getMessage());
+        String contentType = ex.getContentType() != null ? ex.getContentType().toString() : "unknown";
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                "Content-Type '" + contentType + "' is not supported. Use application/json");
+        detail.setTitle("Unsupported Media Type");
         return detail;
     }
 

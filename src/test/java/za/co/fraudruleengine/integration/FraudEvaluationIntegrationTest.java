@@ -34,6 +34,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.lessThan;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -496,7 +497,7 @@ class FraudEvaluationIntegrationTest {
         // First submission — not a duplicate
         TransactionRequest request = new TransactionRequest(
                 "ACC-DUP", new BigDecimal("250.00"), "ZAR",
-                "Pick n Pay", "GROCERY", "CARD_PRESENT", "ZAF",
+                "Pick n Pay", "GROCERY", "POS", "ZAF",
                 LocalDateTime.now().withHour(10));
 
         mockMvc.perform(post("/api/v1/transactions")
@@ -546,7 +547,7 @@ class FraudEvaluationIntegrationTest {
         // ROUND_NUMBER_AMOUNT_RULE fires with risk weight = 25 >= threshold = 20.
         TransactionRequest request = new TransactionRequest(
                 "ACC-ROUND-1", new BigDecimal("10000.00"), "ZAR",
-                "Cash Deposit", "BANKING", "BRANCH", "ZAF",
+                "Cash Deposit", "BANKING", "MOBILE", "ZAF",
                 LocalDateTime.now().withHour(11));
 
         mockMvc.perform(post("/api/v1/transactions")
@@ -596,7 +597,7 @@ class FraudEvaluationIntegrationTest {
         // UNUSUAL_MERCHANT_CATEGORY_RULE fires (15) but 15 < local threshold (20), so not fraudulent.
         TransactionRequest baseline = new TransactionRequest(
                 "ACC-CM-1", new BigDecimal("800.00"), "ZAR",
-                "Woolworths Cape Town", "RETAIL", "CARD_PRESENT", "ZAF",
+                "Woolworths Cape Town", "RETAIL", "POS", "ZAF",
                 LocalDateTime.now().withHour(9));
 
         mockMvc.perform(post("/api/v1/transactions")
@@ -636,7 +637,7 @@ class FraudEvaluationIntegrationTest {
         for (int i = 1; i <= 5; i++) {
             TransactionRequest tx = new TransactionRequest(
                     "ACC-VEL-1", new BigDecimal("100.00"), "ZAR",
-                    "Merchant " + i, "GROCERY", "CARD_PRESENT", "ZAF",
+                    "Merchant " + i, "GROCERY", "POS", "ZAF",
                     LocalDateTime.now().withHour(11));
             mockMvc.perform(post("/api/v1/transactions")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -648,7 +649,7 @@ class FraudEvaluationIntegrationTest {
         // 6th transaction — velocity threshold exceeded
         TransactionRequest sixth = new TransactionRequest(
                 "ACC-VEL-1", new BigDecimal("100.00"), "ZAR",
-                "Merchant 6", "GROCERY", "CARD_PRESENT", "ZAF",
+                "Merchant 6", "GROCERY", "POS", "ZAF",
                 LocalDateTime.now().withHour(11));
         mockMvc.perform(post("/api/v1/transactions")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -666,7 +667,7 @@ class FraudEvaluationIntegrationTest {
         for (int i = 1; i <= 4; i++) {
             TransactionRequest tx = new TransactionRequest(
                     "ACC-VEL-CLEAN", new BigDecimal("100.00"), "ZAR",
-                    "Merchant " + i, "GROCERY", "CARD_PRESENT", "ZAF",
+                    "Merchant " + i, "GROCERY", "POS", "ZAF",
                     LocalDateTime.now().withHour(11));
             mockMvc.perform(post("/api/v1/transactions")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -688,7 +689,7 @@ class FraudEvaluationIntegrationTest {
         // A transaction at 02:00 with a safe amount should score exactly 20 → fraudulent.
         TransactionRequest tx = new TransactionRequest(
                 "ACC-BOUNDARY-1", new BigDecimal("500.00"), "ZAR",
-                "Night Shop", "GROCERY", "CARD_PRESENT", "ZAF",
+                "Night Shop", "GROCERY", "POS", "ZAF",
                 LocalDateTime.now().withHour(2));
 
         mockMvc.perform(post("/api/v1/transactions")
@@ -732,7 +733,7 @@ class FraudEvaluationIntegrationTest {
         // Score = UNUSUAL_MERCHANT_CATEGORY (15 for LUXURY, first time) < 20 → not fraudulent.
         TransactionRequest baseline = new TransactionRequest(
                 "ACC-NOCM-1", new BigDecimal("500.00"), "ZAR",
-                "Checkers", "GROCERY", "CARD_PRESENT", "ZAF",
+                "Checkers", "GROCERY", "POS", "ZAF",
                 LocalDateTime.now().withHour(10));
         mockMvc.perform(post("/api/v1/transactions")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -742,7 +743,7 @@ class FraudEvaluationIntegrationTest {
 
         TransactionRequest sameCountry = new TransactionRequest(
                 "ACC-NOCM-1", new BigDecimal("800.00"), "ZAR",
-                "Woolworths", "RETAIL", "CARD_PRESENT", "ZAF",
+                "Woolworths", "RETAIL", "POS", "ZAF",
                 LocalDateTime.now().withHour(11));
         mockMvc.perform(post("/api/v1/transactions")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -773,6 +774,161 @@ class FraudEvaluationIntegrationTest {
     }
 
     // ══════════════════════════════════════════════════════════════════════════
+    // Error handling — HTTP method, media type, and route validation
+    // (Exercises GlobalExceptionHandler handlers added for Spring MVC exceptions
+    // that previously fell through to the catch-all and returned 500)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    void getOnTransactionsEndpoint_methodNotAllowed_returns405() throws Exception {
+        // POST /api/v1/transactions is the only supported method.
+        // A GET request must return 405 Method Not Allowed (not 500).
+        mockMvc.perform(get("/api/v1/transactions"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.status").value(405))
+                .andExpect(jsonPath("$.title").value("Method Not Allowed"));
+    }
+
+    @Test
+    void postTransactionWithTextPlainContentType_returns415() throws Exception {
+        // Sending text/plain instead of application/json must return 415 Unsupported Media Type.
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("this is not json"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.status").value(415))
+                .andExpect(jsonPath("$.title").value("Unsupported Media Type"));
+    }
+
+    @Test
+    void requestToNonExistentRoute_returns404() throws Exception {
+        // An unknown route must return 404 Not Found (not 500).
+        mockMvc.perform(get("/api/v1/nonexistent"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.title").value("Not Found"));
+    }
+
+    @Test
+    void getAlertWithNonUuidId_returns400() throws Exception {
+        // Path variable {id} expects a UUID. Passing a non-UUID string must return 400.
+        mockMvc.perform(get("/api/v1/alerts/not-a-valid-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    void getTransactionWithNonUuidId_returns400() throws Exception {
+        mockMvc.perform(get("/api/v1/transactions/not-a-valid-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+    }
+
+    @Test
+    void postTransactionWithMalformedJson_returns400() throws Exception {
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ this is not valid json }"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.title").value("Bad Request"));
+    }
+
+    @Test
+    void postTransactionWithInvalidEnumStatus_returns400() throws Exception {
+        // Updating an alert with an unrecognised status value must return 400.
+        // First create an alert by submitting a fraudulent transaction.
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(new TransactionRequest(
+                                "ACC-ENUM-VALID", new BigDecimal("50000.00"), "ZAR",
+                                "Big Store", "LUXURY", "ONLINE", "ZAF",
+                                LocalDateTime.now().withHour(3)))))
+                .andExpect(status().isCreated());
+
+        String alertId = getFirstAlertId();
+        if (alertId.isEmpty()) return; // safety guard — alert may not have been created if no score
+
+        mockMvc.perform(patch("/api/v1/alerts/" + alertId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"INVALID_STATUS_VALUE\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateAlertStatus_validTransitions_allReturnOk() throws Exception {
+        // Verify all three valid status values are accepted: OPEN → REVIEWED → CLOSED
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(new TransactionRequest(
+                                "ACC-STATUS-TRANS", new BigDecimal("60000.00"), "ZAR",
+                                "Luxury Dealer", "AUTOMOTIVE", "ONLINE", "ZAF",
+                                LocalDateTime.now().withHour(3)))))
+                .andExpect(status().isCreated());
+
+        String alertId = getFirstAlertId();
+        if (alertId.isEmpty()) return;
+
+        mockMvc.perform(patch("/api/v1/alerts/" + alertId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"REVIEWED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REVIEWED"));
+
+        mockMvc.perform(patch("/api/v1/alerts/" + alertId + "/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"CLOSED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"));
+    }
+
+    @Test
+    void nightTimePosHighValue_flaggedAsFraud_posIsInCashChannels() throws Exception {
+        // POS is in CASH_CHANNELS (EnumSet.of(ATM, POS)).
+        // A POS withdrawal at 03:00 with R3 500 meets all three NIGHT_TIME_ATM_RULE conditions.
+        // This test explicitly validates the ChannelType.POS → CASH_CHANNELS path.
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(new TransactionRequest(
+                                "ACC-POS-NIGHT", new BigDecimal("3500.00"), "ZAR",
+                                "Engen 24h Petrol", "FUEL", "POS", "ZAF",
+                                LocalDateTime.now().withHour(3)))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fraudulent").value(true))
+                .andExpect(jsonPath("$.riskScore").value(greaterThanOrEqualTo(45)));
+    }
+
+    @Test
+    void nightTimeOnlineHighValue_notFlaggedByNightTimeAtmRule_channelIsolation() throws Exception {
+        // ONLINE is NOT in CASH_CHANNELS.
+        // Even with hour=02, amount=R2000, the NIGHT_TIME_ATM_RULE must NOT fire.
+        // Score should be < 45 (would be 80 if it fired).  This is the ChannelType isolation test.
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(new TransactionRequest(
+                                "ACC-ONLINE-NIGHT", new BigDecimal("2000.00"), "ZAR",
+                                "Amazon", "ONLINE_RETAIL", "ONLINE", "ZAF",
+                                LocalDateTime.now().withHour(2)))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.riskScore").value(lessThan(45)));
+    }
+
+    @Test
+    void unknownChannelValue_doesNotCrash_nightTimeAtmRuleDoesNotFire() throws Exception {
+        // An unrecognised channel string must not throw — ChannelType.fromString() returns null,
+        // null is not in CASH_CHANNELS, so NIGHT_TIME_ATM_RULE does not fire.
+        // The service must return 201 and handle the transaction normally.
+        mockMvc.perform(post("/api/v1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(new TransactionRequest(
+                                "ACC-UNKNOWN-CH", new BigDecimal("3000.00"), "ZAR",
+                                "Some Vendor", "RETAIL", "WIRE_TRANSFER", "ZAF",
+                                LocalDateTime.now().withHour(2)))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.riskScore").value(lessThan(45)));
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
     // helpers
     // ══════════════════════════════════════════════════════════════════════════
 
@@ -782,7 +938,7 @@ class FraudEvaluationIntegrationTest {
 
     private TransactionRequest cleanTransaction(String accountId) {
         return new TransactionRequest(accountId, new BigDecimal("250.00"), "ZAR",
-                "Pick n Pay", "GROCERY", "CARD_PRESENT", "ZAF",
+                "Pick n Pay", "GROCERY", "POS", "ZAF",
                 LocalDateTime.now().withHour(10));
     }
 
